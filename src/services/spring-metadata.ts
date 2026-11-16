@@ -1,14 +1,26 @@
+import type {
+  SpringDependencyGroup
+} from "../types/spring-dependency.js";
 
 export interface SpringBootVersion {
   id: string;
   name: string;
 }
 
-interface SpringMetadata {
+interface SpringMetadataResponse {
   bootVersion: {
     default: string;
     values: SpringBootVersion[];
   };
+  dependencies: {
+    values: SpringDependencyGroup[];
+  };
+}
+
+export interface SpringMetadata {
+  defaultVersion: string;
+  versions: SpringBootVersion[];
+  dependencyGroups: SpringDependencyGroup[];
 }
 
 export function normalizeVersion(version: string): string {
@@ -23,10 +35,7 @@ export function isStableVersion(version: string): boolean {
   return !/(SNAPSHOT|RC\d*|M\d+)/i.test(version);
 }
 
-export async function getSpringBootVersions(): Promise<{
-  defaultVersion: string;
-  versions: SpringBootVersion[];
-}> {
+export async function getSpringMetadata(): Promise<SpringMetadata> {
   const response = await fetch(
     "https://start.spring.io/metadata/client"
   );
@@ -37,15 +46,37 @@ export async function getSpringBootVersions(): Promise<{
     );
   }
 
-  const metadata = (await response.json()) as SpringMetadata;
+  const metadata =
+    (await response.json()) as SpringMetadataResponse;
 
-  const versions = metadata.bootVersion.values.map((version) => ({
-    id: normalizeVersion(version.id),
-    name: version.name
-  }));
+  if (
+    !Array.isArray(metadata.bootVersion?.values) ||
+    !Array.isArray(metadata.dependencies?.values)
+  ) {
+    throw new Error("Invalid Spring Initializr metadata.");
+  }
 
   return {
-    defaultVersion: normalizeVersion(metadata.bootVersion.default),
-    versions
+    defaultVersion: normalizeVersion(
+      metadata.bootVersion.default
+    ),
+    versions: metadata.bootVersion.values.map((version) => ({
+      id: normalizeVersion(version.id),
+      name: version.name
+    })),
+    dependencyGroups: metadata.dependencies.values
+  };
+}
+
+// Keep this function for backward compatibility.
+export async function getSpringBootVersions(): Promise<{
+  defaultVersion: string;
+  versions: SpringBootVersion[];
+}> {
+  const metadata = await getSpringMetadata();
+
+  return {
+    defaultVersion: metadata.defaultVersion,
+    versions: metadata.versions
   };
 }

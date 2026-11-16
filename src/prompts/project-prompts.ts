@@ -2,7 +2,7 @@ import {
   select,
   checkbox,
   confirm,
-  Separator,
+  Separator
 } from "@inquirer/prompts";
 
 import type {
@@ -11,18 +11,25 @@ import type {
 } from "../types/project-options.js";
 
 import {
-  getSpringBootVersions,
+  getSpringMetadata,
   isStableVersion
 } from "../services/spring-metadata.js";
 
 import {
-  getSpringDependencies,
   filterDependencies
 } from "../services/spring-dependencies.js";
 
 export async function askProjectOptions(
   projectName: string
 ): Promise<ProjectOptions> {
+  console.log("Loading Spring Initializr metadata...");
+
+  const {
+    defaultVersion,
+    versions,
+    dependencyGroups
+  } = await getSpringMetadata();
+
   const buildTool = await select<BuildTool>({
     message: "Choose your build tool:",
     choices: [
@@ -39,9 +46,6 @@ export async function askProjectOptions(
       { name: "Java 25", value: "25" }
     ]
   });
-
-  const { defaultVersion, versions } =
-    await getSpringBootVersions();
 
   const includePrereleases = await confirm({
     message: "Include Spring Boot pre-release versions?",
@@ -75,26 +79,23 @@ export async function askProjectOptions(
     default: selectedDefault
   });
 
-  console.log("Loading available dependencies...");
-
-  const dependencyGroups = await getSpringDependencies();
-
   const compatibleGroups = filterDependencies(
     dependencyGroups,
     springBootVersion
   );
 
-const dependencyChoices = compatibleGroups.flatMap((group) => [
-  new Separator(`--- ${group.name} ---`),
-
-  ...group.values.map((dependency) => ({
-    name: dependency.name,
-    value: dependency.id,
-    ...(dependency.description !== undefined && {
-      description: dependency.description
-    })
-  }))
-]);
+  const dependencyChoices = compatibleGroups.flatMap(
+    (group) => [
+      new Separator(`--- ${group.name} ---`),
+      ...group.values.map((dependency) => ({
+        name: dependency.name,
+        value: dependency.id,
+        ...(dependency.description !== undefined && {
+          description: dependency.description
+        })
+      }))
+    ]
+  );
 
   const dependencies = await checkbox<string>({
     message: "Select your dependencies:",

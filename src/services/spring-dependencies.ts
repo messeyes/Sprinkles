@@ -3,35 +3,14 @@ import type {
   SpringDependencyGroup
 } from "../types/spring-dependency.js";
 
-interface SpringDependenciesMetadata {
-  dependencies: {
-    values: SpringDependencyGroup[];
-  };
-}
+import { getSpringMetadata } from "./spring-metadata.js";
 
 export async function getSpringDependencies():
   Promise<SpringDependencyGroup[]> {
-  const response = await fetch(
-    "https://start.spring.io/metadata/client"
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch Spring dependencies: ${response.status}`
-    );
-  }
-
-  const metadata =
-    (await response.json()) as SpringDependenciesMetadata;
-
-  if (!Array.isArray(metadata.dependencies?.values)) {
-    throw new Error("Invalid Spring Initializr dependency metadata.");
-  }
-
-  return metadata.dependencies.values;
+  const metadata = await getSpringMetadata();
+  return metadata.dependencyGroups;
 }
 
-// Compare numeric Spring Boot version components.
 function compareVersions(a: string, b: string): number {
   const parse = (version: string): number[] => {
     const numeric = version.match(/^\d+(?:\.\d+)*/)?.[0];
@@ -72,7 +51,6 @@ export function isDependencyCompatible(
   );
 
   if (!match) {
-    // Unknown range syntax: do not claim compatibility.
     return false;
   }
 
@@ -82,10 +60,7 @@ export function isDependencyCompatible(
   const maximum = maxText?.trim();
 
   if (minimum) {
-    const comparison = compareVersions(
-      bootVersion,
-      minimum
-    );
+    const comparison = compareVersions(bootVersion, minimum);
 
     if (
       comparison < 0 ||
@@ -96,10 +71,7 @@ export function isDependencyCompatible(
   }
 
   if (maximum) {
-    const comparison = compareVersions(
-      bootVersion,
-      maximum
-    );
+    const comparison = compareVersions(bootVersion, maximum);
 
     if (
       comparison > 0 ||
