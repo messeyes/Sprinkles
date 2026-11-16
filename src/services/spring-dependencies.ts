@@ -5,36 +5,16 @@ import type {
 
 import { getSpringMetadata } from "./spring-metadata.js";
 
+import {
+  compareVersions
+} from "../utils/compare-versions.js";
+
 export async function getSpringDependencies():
   Promise<SpringDependencyGroup[]> {
   const metadata = await getSpringMetadata();
   return metadata.dependencyGroups;
 }
 
-function compareVersions(a: string, b: string): number {
-  const parse = (version: string): number[] => {
-    const numeric = version.match(/^\d+(?:\.\d+)*/)?.[0];
-
-    if (!numeric) {
-      throw new Error(`Invalid Spring Boot version: ${version}`);
-    }
-
-    return numeric.split(".").map(Number);
-  };
-
-  const left = parse(a);
-  const right = parse(b);
-
-  for (let i = 0; i < Math.max(left.length, right.length); i++) {
-    const difference = (left[i] ?? 0) - (right[i] ?? 0);
-
-    if (difference !== 0) {
-      return Math.sign(difference);
-    }
-  }
-
-  return 0;
-}
 
 export function isDependencyCompatible(
   dependency: SpringDependency,
