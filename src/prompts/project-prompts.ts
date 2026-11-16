@@ -1,7 +1,15 @@
 
-import { select, checkbox } from "@inquirer/prompts";
-import type { BuildTool, ProjectOptions } from "../types/project-options.js";
-import { getSpringBootVersions } from "../services/spring-metadata.js";
+import { select, checkbox, confirm } from "@inquirer/prompts";
+
+import type {
+  BuildTool,
+  ProjectOptions
+} from "../types/project-options.js";
+
+import {
+  getSpringBootVersions,
+  isStableVersion
+} from "../services/spring-metadata.js";
 
 export async function askProjectOptions(
   projectName: string
@@ -25,14 +33,39 @@ export async function askProjectOptions(
 
   const { defaultVersion, versions } = await getSpringBootVersions();
 
-const springBootVersion = await select<string>({
-  message: "Choose your Spring Boot version:",
-  choices: versions.map((version) => ({
-    name: version.name,
-    value: version.id
-  })),
-  default: defaultVersion
-});
+  const includePrereleases = await confirm({
+    message: "Include Spring Boot pre-release versions?",
+    default: false
+  });
+
+  const availableVersions = includePrereleases
+    ? versions
+    : versions.filter((version) => isStableVersion(version.id));
+
+  if (availableVersions.length === 0) {
+    throw new Error("No Spring Boot versions available.");
+  }
+
+  const firstVersion = availableVersions[0];
+
+if (!firstVersion) {
+  throw new Error("No Spring Boot versions available.");
+}
+
+const selectedDefault = availableVersions.some(
+  (version) => version.id === defaultVersion
+)
+  ? defaultVersion
+  : firstVersion.id;
+
+  const springBootVersion = await select<string>({
+    message: "Choose your Spring Boot version:",
+    choices: availableVersions.map((version) => ({
+      name: version.name,
+      value: version.id
+    })),
+    default: selectedDefault
+  });
 
   const dependencies = await checkbox<string>({
     message: "Select your dependencies:",

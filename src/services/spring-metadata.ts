@@ -11,6 +11,18 @@ interface SpringMetadata {
   };
 }
 
+export function normalizeVersion(version: string): string {
+  return version
+    .replace(/\.RELEASE$/, "")
+    .replace(/\.BUILD-SNAPSHOT$/, "-SNAPSHOT")
+    .replace(/\.RC(\d+)$/, "-RC$1")
+    .replace(/\.M(\d+)$/, "-M$1");
+}
+
+export function isStableVersion(version: string): boolean {
+  return !/(SNAPSHOT|RC\d*|M\d+)/i.test(version);
+}
+
 export async function getSpringBootVersions(): Promise<{
   defaultVersion: string;
   versions: SpringBootVersion[];
@@ -27,21 +39,13 @@ export async function getSpringBootVersions(): Promise<{
 
   const metadata = (await response.json()) as SpringMetadata;
 
-  const normalizeVersion = (version: string): string => {
-    return version.replace(/\.RELEASE$/, "");
-  };
-
   const versions = metadata.bootVersion.values.map((version) => ({
     id: normalizeVersion(version.id),
     name: version.name
   }));
 
-  const defaultVersion = normalizeVersion(
-    metadata.bootVersion.default
-  );
-
   return {
-    defaultVersion,
+    defaultVersion: normalizeVersion(metadata.bootVersion.default),
     versions
   };
 }
