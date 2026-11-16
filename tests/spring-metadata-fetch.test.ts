@@ -25,6 +25,16 @@ describe("Spring Initializr metadata", () => {
               { id: "4.1.2.RELEASE", name: "4.1.2" }
             ]
           },
+
+        javaVersion: {
+            default: "21",
+            values: [
+            { id: "17", name: "17" },
+            { id: "21", name: "21" },
+            { id: "25", name: "25" }
+        ]
+      },
+
           dependencies: {
             values: [
               {
@@ -52,6 +62,14 @@ describe("Spring Initializr metadata", () => {
     expect(metadata.dependencyGroups[0]?.values[0]?.id).toBe(
       "web"
     );
+
+    expect(metadata.defaultJavaVersion).toBe("21");
+    expect(metadata.javaVersions).toHaveLength(3);
+    expect(metadata.javaVersions.map((v) => v.id)).toEqual([
+    "17",
+    "21",
+    "25"
+    ]);
   });
 
   it("rejects invalid metadata", async () => {

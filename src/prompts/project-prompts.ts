@@ -22,6 +22,11 @@ import {
 } from "../services/spring-dependencies.js";
 
 import {
+  filterJavaVersions,
+  validateJavaVersion
+} from "../services/java-compatibility.js";
+
+import {
   askDependencies,
   getDependencyNames
 } from "./dependency-prompts.js";
@@ -49,22 +54,6 @@ async function askBuildTool(
   });
 }
 
-async function askJavaVersion(
-  current?: string
-): Promise<string> {
-  return select<string>({
-    message: "Choose your Java version:",
-    choices: [
-      { name: "Java 17", value: "17" },
-      { name: "Java 21", value: "21" },
-      { name: "Java 25", value: "25" }
-    ],
-    ...(current !== undefined && {
-      default: current
-    })
-  });
-}
-
 export async function askProjectOptions(
   projectName: string
 ): Promise<ProjectOptions> {
@@ -73,7 +62,9 @@ export async function askProjectOptions(
   const {
     defaultVersion,
     versions,
-    dependencyGroups
+    dependencyGroups,
+    defaultJavaVersion,
+    javaVersions
   } = await getSpringMetadata();
 
   const chooseSpringVersion = async (
@@ -81,7 +72,8 @@ export async function askProjectOptions(
   ): Promise<string> => {
     const includePrereleases = await confirm({
       message: "Include Spring Boot pre-release versions?",
-      default: current !== undefined &&
+      default:
+        current !== undefined &&
         !isStableVersion(current)
     });
 
@@ -94,12 +86,16 @@ export async function askProjectOptions(
     const firstVersion = availableVersions[0];
 
     if (!firstVersion) {
-      throw new Error("No Spring Boot versions available.");
+      throw new Error(
+        "No Spring Boot versions available."
+      );
     }
 
     const preferredVersion =
       current !== undefined &&
-      availableVersions.some((v) => v.id === current)
+      availableVersions.some(
+        (version) => version.id === current
+      )
         ? current
         : defaultVersion;
 
@@ -119,9 +115,52 @@ export async function askProjectOptions(
     });
   };
 
+  const askJavaVersion = async (
+    springVersion: string,
+    current?: string
+  ): Promise<string> => {
+    const compatibleVersions = filterJavaVersions(
+      javaVersions,
+      springVersion
+    );
+
+    if (compatibleVersions.length === 0) {
+      throw new Error(
+        `No compatible Java versions found for Spring Boot ${springVersion}.`
+      );
+    }
+
+    const preferredVersion =
+      current !== undefined &&
+      compatibleVersions.some(
+        (version) => version.id === current
+      )
+        ? current
+        : defaultJavaVersion;
+
+    const selectedDefault = compatibleVersions.some(
+      (version) => version.id === preferredVersion
+    )
+      ? preferredVersion
+      : compatibleVersions[0]!.id;
+
+    return select<string>({
+      message: "Choose your Java version:",
+      choices: compatibleVersions.map((version) => ({
+        name: `Java ${version.name}`,
+        value: version.id
+      })),
+      default: selectedDefault
+    });
+  };
+
   let buildTool = await askBuildTool();
-  let javaVersion = await askJavaVersion();
+
   let springBootVersion = await chooseSpringVersion();
+
+  let javaVersion = await askJavaVersion(
+    springBootVersion
+  );
 
   const getCompatibleGroups = ():
     SpringDependencyGroup[] => {
@@ -191,6 +230,12 @@ export async function askProjectOptions(
     });
 
     if (action === "generate") {
+      validateJavaVersion(
+        javaVersion,
+        springBootVersion,
+        javaVersions
+      );
+
       return {
         projectName,
         buildTool,
@@ -201,7 +246,9 @@ export async function askProjectOptions(
     }
 
     if (action === "cancel") {
-      throw new Error("Project generation cancelled.");
+      throw new Error(
+        "Project generation cancelled."
+      );
     }
 
     if (action === "build") {
@@ -210,7 +257,11 @@ export async function askProjectOptions(
     }
 
     if (action === "java") {
-      javaVersion = await askJavaVersion(javaVersion);
+      javaVersion = await askJavaVersion(
+        springBootVersion,
+        javaVersion
+      );
+
       continue;
     }
 
@@ -219,12 +270,33 @@ export async function askProjectOptions(
         springBootVersion
       );
 
-      // Remove dependencies that are no longer compatible.
+      const compatibleJavaVersions = filterJavaVersions(
+        javaVersions,
+        springBootVersion
+      );
+
+      const isCurrentJavaCompatible =
+        compatibleJavaVersions.some(
+          (version) => version.id === javaVersion
+        );
+
+      if (!isCurrentJavaCompatible) {
+        console.log(
+          "\nYour Java version is no longer compatible."
+        );
+
+        javaVersion = await askJavaVersion(
+          springBootVersion
+        );
+      }
+
       const compatibleGroups = getCompatibleGroups();
 
       const compatibleIds = new Set(
         compatibleGroups.flatMap((group) =>
-          group.values.map((dependency) => dependency.id)
+          group.values.map(
+            (dependency) => dependency.id
+          )
         )
       );
 
@@ -257,6 +329,8 @@ export async function askProjectOptions(
         getCompatibleGroups(),
         dependencies
       );
+
+      continue;
     }
   }
 }
