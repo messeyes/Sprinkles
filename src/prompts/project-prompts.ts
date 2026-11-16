@@ -1,6 +1,7 @@
 
 import { select, checkbox } from "@inquirer/prompts";
 import type { BuildTool, ProjectOptions } from "../types/project-options.js";
+import { getSpringBootVersions } from "../services/spring-metadata.js";
 
 export async function askProjectOptions(
   projectName: string
@@ -22,6 +23,17 @@ export async function askProjectOptions(
     ]
   });
 
+  const { defaultVersion, versions } = await getSpringBootVersions();
+
+const springBootVersion = await select<string>({
+  message: "Choose your Spring Boot version:",
+  choices: versions.map((version) => ({
+    name: version.name,
+    value: version.id
+  })),
+  default: defaultVersion
+});
+
   const dependencies = await checkbox<string>({
     message: "Select your dependencies:",
     choices: [
@@ -40,6 +52,7 @@ export async function askProjectOptions(
     projectName,
     buildTool,
     javaVersion,
+    springBootVersion,
     dependencies
   };
 }

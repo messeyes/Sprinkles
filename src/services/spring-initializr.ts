@@ -27,6 +27,7 @@ export async function generateSpringProject(
     artifactId: projectName,
     name: projectName,
     packageName: `com.example.${packageSuffix}`,
+    bootVersion: options.springBootVersion,
     dependencies: dependencies.join(",")
   });
 
@@ -34,13 +35,20 @@ export async function generateSpringProject(
 
   console.log("Downloading Spring Boot project...");
 
+  console.log("Request URL:", url);
+
   const response = await fetch(url);
 
-  if (!response.ok) {
-    throw new Error(
-      `Spring Initializr request failed: ${response.status}`
-    );
-  }
+ if (!response.ok) {
+  const errorDetails = await response.text();
+
+  console.error("Spring Initializr error details:");
+  console.error(errorDetails);
+
+  throw new Error(
+    `Spring Initializr request failed: ${response.status}`
+  );
+}
 
   const buffer = Buffer.from(await response.arrayBuffer());
   const zip = new AdmZip(buffer);
