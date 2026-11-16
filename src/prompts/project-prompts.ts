@@ -1,5 +1,9 @@
-
-import { select, checkbox, confirm } from "@inquirer/prompts";
+import {
+  select,
+  checkbox,
+  confirm,
+  Separator,
+} from "@inquirer/prompts";
 
 import type {
   BuildTool,
@@ -10,6 +14,11 @@ import {
   getSpringBootVersions,
   isStableVersion
 } from "../services/spring-metadata.js";
+
+import {
+  getSpringDependencies,
+  filterDependencies
+} from "../services/spring-dependencies.js";
 
 export async function askProjectOptions(
   projectName: string
@@ -31,7 +40,8 @@ export async function askProjectOptions(
     ]
   });
 
-  const { defaultVersion, versions } = await getSpringBootVersions();
+  const { defaultVersion, versions } =
+    await getSpringBootVersions();
 
   const includePrereleases = await confirm({
     message: "Include Spring Boot pre-release versions?",
@@ -40,23 +50,21 @@ export async function askProjectOptions(
 
   const availableVersions = includePrereleases
     ? versions
-    : versions.filter((version) => isStableVersion(version.id));
-
-  if (availableVersions.length === 0) {
-    throw new Error("No Spring Boot versions available.");
-  }
+    : versions.filter((version) =>
+        isStableVersion(version.id)
+      );
 
   const firstVersion = availableVersions[0];
 
-if (!firstVersion) {
-  throw new Error("No Spring Boot versions available.");
-}
+  if (!firstVersion) {
+    throw new Error("No Spring Boot versions available.");
+  }
 
-const selectedDefault = availableVersions.some(
-  (version) => version.id === defaultVersion
-)
-  ? defaultVersion
-  : firstVersion.id;
+  const selectedDefault = availableVersions.some(
+    (version) => version.id === defaultVersion
+  )
+    ? defaultVersion
+    : firstVersion.id;
 
   const springBootVersion = await select<string>({
     message: "Choose your Spring Boot version:",
@@ -67,18 +75,31 @@ const selectedDefault = availableVersions.some(
     default: selectedDefault
   });
 
+  console.log("Loading available dependencies...");
+
+  const dependencyGroups = await getSpringDependencies();
+
+  const compatibleGroups = filterDependencies(
+    dependencyGroups,
+    springBootVersion
+  );
+
+const dependencyChoices = compatibleGroups.flatMap((group) => [
+  new Separator(`--- ${group.name} ---`),
+
+  ...group.values.map((dependency) => ({
+    name: dependency.name,
+    value: dependency.id,
+    ...(dependency.description !== undefined && {
+      description: dependency.description
+    })
+  }))
+]);
+
   const dependencies = await checkbox<string>({
     message: "Select your dependencies:",
-    choices: [
-      { name: "Spring Web", value: "web", checked: true },
-      { name: "Spring Data JPA", value: "data-jpa" },
-      { name: "PostgreSQL Driver", value: "postgresql" },
-      { name: "Validation", value: "validation" },
-      { name: "Spring Security", value: "security" },
-      { name: "Spring Boot Actuator", value: "actuator" },
-      { name: "Flyway Migration", value: "flyway" },
-      { name: "Lombok", value: "lombok" }
-    ]
+    choices: dependencyChoices,
+    pageSize: 15
   });
 
   return {
