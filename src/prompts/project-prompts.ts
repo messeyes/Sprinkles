@@ -31,12 +31,18 @@ import {
   getDependencyNames
 } from "./dependency-prompts.js";
 
+import {
+  askProjectMetadata
+} from "./metadata-prompts.js";
+
+
 type ReviewAction =
   | "generate"
   | "build"
   | "java"
   | "spring"
   | "dependencies"
+  | "metadata"
   | "cancel";
 
 async function askBuildTool(
@@ -158,9 +164,9 @@ export async function askProjectOptions(
 
   let springBootVersion = await chooseSpringVersion();
 
-  let javaVersion = await askJavaVersion(
-    springBootVersion
-  );
+  let javaVersion = await askJavaVersion(springBootVersion);
+
+  let metadata = await askProjectMetadata(projectName);
 
   const getCompatibleGroups = ():
     SpringDependencyGroup[] => {
@@ -181,6 +187,11 @@ export async function askProjectOptions(
     console.log(`Build tool:   ${buildTool}`);
     console.log(`Java:         ${javaVersion}`);
     console.log(`Spring Boot:  ${springBootVersion}`);
+    console.log(`Group ID:     ${metadata.groupId}`);
+    console.log(`Artifact ID:  ${metadata.artifactId}`);
+    console.log(`Package:      ${metadata.packageName}`);
+    console.log(`Description:  ${metadata.description}`);
+    console.log(`Packaging:    ${metadata.packaging}`);
 
     const names = getDependencyNames(
       dependencyGroups,
@@ -223,6 +234,10 @@ export async function askProjectOptions(
           value: "dependencies"
         },
         {
+          name: "Edit project metadata",
+          value: "metadata"
+        },
+        {
           name: "Cancel",
           value: "cancel"
         }
@@ -241,7 +256,8 @@ export async function askProjectOptions(
         buildTool,
         javaVersion,
         springBootVersion,
-        dependencies
+        dependencies,
+        ...metadata
       };
     }
 
@@ -332,5 +348,14 @@ export async function askProjectOptions(
 
       continue;
     }
+
+    if (action === "metadata") {
+       metadata = await askProjectMetadata(
+        projectName,
+        metadata
+    );
+
+     continue;
+   }
   }
 }

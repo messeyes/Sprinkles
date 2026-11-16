@@ -19,17 +19,22 @@ export async function generateSpringProject(
     .toLowerCase()
     .replace(/[-_]/g, "");
 
-  const params = new URLSearchParams({
-    type: buildTool === "maven" ? "maven-project" : "gradle-project",
-    language: "java",
-    javaVersion,
-    groupId: "com.example",
-    artifactId: projectName,
-    name: projectName,
-    packageName: `com.example.${packageSuffix}`,
-    bootVersion: options.springBootVersion,
-    dependencies: dependencies.join(",")
-  });
+const params = new URLSearchParams({
+  type:
+    options.buildTool === "maven"
+      ? "maven-project"
+      : "gradle-project",
+  language: "java",
+  javaVersion: options.javaVersion,
+  groupId: options.groupId,
+  artifactId: options.artifactId,
+  name: options.projectName,
+  packageName: options.packageName,
+  description: options.description,
+  packaging: options.packaging,
+  bootVersion: options.springBootVersion,
+  dependencies: options.dependencies.join(",")
+});
 
   const url = `https://start.spring.io/starter.zip?${params.toString()}`;
 

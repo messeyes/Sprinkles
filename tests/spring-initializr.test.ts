@@ -1,24 +1,98 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from "vitest";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
 import AdmZip from "adm-zip";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { generateSpringProject } from "../src/services/spring-initializr.js";
-import type { ProjectOptions } from "../src/types/project-options.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
-const originalCwd = process.cwd();
-const originalFetch = globalThis.fetch;
+import {
+  generateSpringProject
+} from "../src/services/spring-initializr.js";
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  globalThis.fetch = originalFetch;
-  process.chdir(originalCwd);
-});
+import type {
+  BuildTool,
+  ProjectOptions
+} from "../src/types/project-options.js";
 
 describe("Spring Initializr project generation", () => {
-  const configurations: Array<{
-    buildTool: ProjectOptions["buildTool"];
+  let testDirectory: string;
+  let originalDirectory: string;
+
+  const createOptions = (
+    buildTool: BuildTool,
+    javaVersion: string,
+    overrides: Partial<ProjectOptions> = {}
+  ): ProjectOptions => ({
+    projectName: "test-project",
+    buildTool,
+    javaVersion,
+    springBootVersion: "4.1.2",
+    dependencies: [],
+
+    groupId: "com.example",
+    artifactId: "test-project",
+    packageName: "com.example.testproject",
+    description: "Spring Boot application",
+    packaging: "jar",
+
+    ...overrides
+  });
+
+  beforeEach(() => {
+    originalDirectory = process.cwd();
+
+    testDirectory = fs.mkdtempSync(
+      path.join(os.tmpdir(), "sprinkles-test-")
+    );
+
+    process.chdir(testDirectory);
+  });
+
+  afterEach(() => {
+    process.chdir(originalDirectory);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+
+    fs.rmSync(testDirectory, {
+      recursive: true,
+      force: true
+    });
+  });
+
+  function mockSpringInitializr(): ReturnType<typeof vi.fn> {
+    const zip = new AdmZip();
+
+    zip.addFile(
+      "README.md",
+      Buffer.from("# Generated Spring Boot Project")
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new Uint8Array(zip.toBuffer()),
+        {
+          status: 200,
+          headers: {
+            "content-type": "application/zip"
+          }
+        }
+      )
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    return fetchMock;
+  }
+
+  const scenarios: Array<{
+    buildTool: BuildTool;
     javaVersion: string;
     dependencies: string[];
   }> = [
@@ -63,77 +137,113 @@ describe("Spring Initializr project generation", () => {
     }
   ];
 
-  it.each(configurations)(
+  it.each(scenarios)(
     "generates $buildTool project with Java $javaVersion",
     async ({ buildTool, javaVersion, dependencies }) => {
-      const directory = mkdtempSync(
-        join(tmpdir(), "sprinkles-test-")
+      const fetchMock = mockSpringInitializr();
+
+      const options = createOptions(
+        buildTool,
+        javaVersion,
+        { dependencies }
       );
 
-      try {
-        process.chdir(directory);
+      await generateSpringProject(options);
 
-        const zip = new AdmZip();
-        zip.addFile("README.md", Buffer.from("Test project"));
+      expect(fetchMock).toHaveBeenCalledOnce();
 
-       const zipBuffer = zip.toBuffer();
+      const requestUrl = String(
+        fetchMock.mock.calls[0]?.[0]
+      );
 
-        const zipBytes = Uint8Array.from(zipBuffer);
+      const url = new URL(requestUrl);
 
-        const fetchMock = vi.fn().mockResolvedValue(
-        new Response(new Blob([zipBytes]), { status: 200 })
-        );
+      expect(url.origin).toBe("https://start.spring.io");
+      expect(url.pathname).toBe("/starter.zip");
 
-        vi.stubGlobal("fetch", fetchMock);
+      expect(url.searchParams.get("type")).toBe(
+        buildTool === "maven"
+          ? "maven-project"
+          : "gradle-project"
+      );
 
-        const options: ProjectOptions = {
-          projectName: "test-project",
-          buildTool,
-          javaVersion,
-          springBootVersion: "4.1.2",
-          dependencies
-        };
+      expect(url.searchParams.get("javaVersion")).toBe(
+        javaVersion
+      );
 
-        await generateSpringProject(options);
+      expect(url.searchParams.get("bootVersion")).toBe(
+        "4.1.2"
+      );
 
-        expect(fetchMock).toHaveBeenCalledOnce();
+      expect(url.searchParams.get("dependencies")).toBe(
+        dependencies.join(",")
+      );
 
-        const requestedUrl = new URL(
-          fetchMock.mock.calls[0][0] as string
-        );
-
-        expect(requestedUrl.searchParams.get("type")).toBe(
-          buildTool === "maven"
-            ? "maven-project"
-            : "gradle-project"
-        );
-
-        expect(requestedUrl.searchParams.get("javaVersion")).toBe(
-          javaVersion
-        );
-
-        expect(requestedUrl.searchParams.get("bootVersion")).toBe(
-          "4.1.2"
-        );
-
-        expect(requestedUrl.searchParams.get("dependencies")).toBe(
-          dependencies.join(",")
-        );
-
-        expect(existsSync(join(directory, "test-project"))).toBe(
-          true
-        );
-
-        expect(
-          readFileSync(
-            join(directory, "test-project", "README.md"),
-            "utf8"
-          )
-        ).toBe("Test project");
-      } finally {
-        process.chdir(originalCwd);
-        rmSync(directory, { recursive: true, force: true });
-      }
+      expect(
+        fs.existsSync(
+          path.join(testDirectory, "test-project", "README.md")
+        )
+      ).toBe(true);
     }
   );
+
+  it("sends custom project metadata to Spring Initializr", async () => {
+    const fetchMock = mockSpringInitializr();
+
+    const options = createOptions("gradle", "21", {
+      groupId: "com.messeyes",
+      artifactId: "my-api",
+      packageName: "com.messeyes.myapi",
+      description: "My Spring Boot REST API",
+      packaging: "jar"
+    });
+
+    await generateSpringProject(options);
+
+    const requestUrl = String(
+      fetchMock.mock.calls[0]?.[0]
+    );
+
+    const url = new URL(requestUrl);
+
+    expect(url.searchParams.get("groupId")).toBe(
+      "com.messeyes"
+    );
+
+    expect(url.searchParams.get("artifactId")).toBe(
+      "my-api"
+    );
+
+    expect(url.searchParams.get("packageName")).toBe(
+      "com.messeyes.myapi"
+    );
+
+    expect(url.searchParams.get("description")).toBe(
+      "My Spring Boot REST API"
+    );
+
+    expect(url.searchParams.get("packaging")).toBe("jar");
+
+    expect(url.searchParams.get("name")).toBe(
+      "test-project"
+    );
+  });
+
+  it("supports WAR packaging", async () => {
+    const fetchMock = mockSpringInitializr();
+
+    const options = createOptions("maven", "21", {
+      packaging: "war"
+    });
+
+    await generateSpringProject(options);
+
+    const requestUrl = String(
+      fetchMock.mock.calls[0]?.[0]
+    );
+
+    const url = new URL(requestUrl);
+
+    expect(url.searchParams.get("packaging")).toBe("war");
+  });
 });
