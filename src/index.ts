@@ -23,10 +23,6 @@ import {
   resolveProjectOptions
 } from "./utils/resolve-project-options.js";
 
-import {
-  initProjectConfig
-} from "./commands/init.js";
-
 interface CliOptions {
   config?: string;
   saveConfig?: boolean;
@@ -55,13 +51,6 @@ async function runCommand(
     process.exitCode = 1;
   }
 }
-
-program
-  .command("init")
-  .description("Create a reusable sprinkles.json configuration")
-  .action(async () => {
-    await runCommand(initProjectConfig);
-  });
 
 program
   .argument("<project-name>", "name of the project")
@@ -115,6 +104,7 @@ program
 
       if (cliOptions.saveConfig) {
         await saveProjectConfig(options);
+
         console.log(
           "Configuration saved to sprinkles.json"
         );
