@@ -19,9 +19,18 @@ import {
   saveProjectConfig
 } from "./services/project-config.js";
 
+import {
+  resolveProjectOptions
+} from "./utils/resolve-project-options.js";
+
+import {
+  initProjectConfig
+} from "./commands/init.js";
+
 interface CliOptions {
   config?: string;
   saveConfig?: boolean;
+  useProjectName?: boolean;
 }
 
 const program = new Command();
@@ -30,6 +39,29 @@ program
   .name("sprinkles")
   .description("CLI to scaffold Spring Boot projects")
   .version("0.1.0");
+
+async function runCommand(
+  action: () => Promise<void>
+): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error("An unexpected error occurred.");
+    }
+
+    process.exitCode = 1;
+  }
+}
+
+program
+  .command("init")
+  .description("Create a reusable sprinkles.json configuration")
+  .action(async () => {
+    await runCommand(initProjectConfig);
+  });
 
 program
   .argument("<project-name>", "name of the project")
@@ -41,20 +73,18 @@ program
     "-s, --save-config",
     "save interactive configuration to sprinkles.json"
   )
+  .option(
+    "--use-project-name",
+    "override artifactId and packageName using the project name"
+  )
   .action(async (
     projectName: string,
     cliOptions: CliOptions
   ) => {
-    if (!isValidProjectName(projectName)) {
-      console.error("Error: Invalid project name.");
-      process.exitCode = 1;
-      return;
-    }
-
-    try {
-      console.log(
-        `Creating Spring Boot project: ${projectName}`
-      );
+    await runCommand(async () => {
+      if (!isValidProjectName(projectName)) {
+        throw new Error("Invalid project name.");
+      }
 
       if (cliOptions.config && cliOptions.saveConfig) {
         throw new Error(
@@ -62,11 +92,25 @@ program
         );
       }
 
+      if (
+        cliOptions.useProjectName &&
+        !cliOptions.config
+      ) {
+        throw new Error(
+          "--use-project-name requires --config."
+        );
+      }
+
+      console.log(
+        `Creating Spring Boot project: ${projectName}`
+      );
+
       const options = cliOptions.config
-        ? {
+        ? resolveProjectOptions(
             projectName,
-            ...await loadProjectConfig(cliOptions.config)
-          }
+            await loadProjectConfig(cliOptions.config),
+            cliOptions.useProjectName ?? false
+          )
         : await askProjectOptions(projectName);
 
       if (cliOptions.saveConfig) {
@@ -79,17 +123,7 @@ program
       await generateSpringProject(options);
 
       console.log("Project generated successfully!");
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error: ${error.message}`);
-      } else {
-        console.error(
-          "An unexpected error occurred."
-        );
-      }
-
-      process.exitCode = 1;
-    }
+    });
   });
 
 await program.parseAsync();
