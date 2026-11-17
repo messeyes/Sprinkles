@@ -2,6 +2,8 @@ export type BuildTool = "gradle" | "maven";
 
 export type Packaging = "jar" | "war";
 
+export type ProjectArchitecture = "standard" | "layered";
+
 export interface ProjectOptions {
   projectName: string;
   buildTool: BuildTool;
@@ -14,4 +16,6 @@ export interface ProjectOptions {
   packageName: string;
   description: string;
   packaging: Packaging;
+
+  architecture?: ProjectArchitecture;
 }

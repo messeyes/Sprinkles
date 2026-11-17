@@ -12,6 +12,10 @@ import type {
   SpringDependencyGroup
 } from "../types/spring-dependency.js";
 
+import type {
+  ProjectArchitecture
+} from "../types/project-options.js";
+
 import {
   getSpringMetadata,
   isStableVersion
@@ -176,6 +180,21 @@ export async function askProjectOptions(
     );
   };
 
+let architecture = await select<ProjectArchitecture>({
+  message: "Choose your project architecture:",
+  choices: [
+    {
+      name: "Standard (Spring Boot default)",
+      value: "standard"
+    },
+    {
+      name: "Layered Architecture",
+      value: "layered"
+    }
+  ],
+  default: "standard"
+});
+
   let dependencies = await askDependencies(
     getCompatibleGroups()
   );
@@ -192,6 +211,7 @@ export async function askProjectOptions(
     console.log(`Package:      ${metadata.packageName}`);
     console.log(`Description:  ${metadata.description}`);
     console.log(`Packaging:    ${metadata.packaging}`);
+    console.log(`Architecture: ${architecture}`);
 
     const names = getDependencyNames(
       dependencyGroups,
@@ -257,7 +277,8 @@ export async function askProjectOptions(
         javaVersion,
         springBootVersion,
         dependencies,
-        ...metadata
+        ...metadata,
+        architecture
       };
     }
 
