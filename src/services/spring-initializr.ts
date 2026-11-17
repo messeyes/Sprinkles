@@ -1,4 +1,3 @@
-
 import AdmZip from "adm-zip";
 
 import {
@@ -112,7 +111,9 @@ export async function generateSpringProject(
     await generateProjectStructure(
       projectPath,
       options.packageName,
-      options.architecture ?? "standard"
+      options.architecture ?? "standard",
+      options.dependencies,
+      options.springBootVersion
     );
 
     console.log(
