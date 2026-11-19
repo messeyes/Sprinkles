@@ -45,12 +45,14 @@ async function findApplicationPackage(
 
     if (
       !entry.isFile() ||
-      !entry.name.endsWith("Application.java")
+      !entry.name.endsWith(".java")
     ) {
       continue;
     }
 
-    const content = await readFile(entryPath, "utf-8");
+    const content = (
+      await readFile(entryPath, "utf-8")
+    ).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
 
     if (!/@SpringBootApplication\b/.test(content)) {
       continue;
