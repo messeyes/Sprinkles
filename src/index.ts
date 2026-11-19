@@ -36,8 +36,8 @@ import {
 } from "./core/project/detect-spring-project.js";
 
 import {
-  generateEntity
-} from "./generators/entity/entity-generator.js";
+  generateEntityResources
+} from "./generators/generate-entity-resources.js";
 
 interface CliOptions {
   config?: string;
@@ -138,7 +138,7 @@ const generateCommand = program
 
 generateCommand
   .command("entity")
-  .description("Generate a new entity")
+  .description("Generate a new entity and its repository")
   .argument("<name>", "entity name")
   .action(async (name: string) => {
     await runCommand(async () => {
@@ -150,15 +150,15 @@ generateCommand
 
       const definition = await askEntityFields(name);
 
-      const filePath = await generateEntity(
-        project,
-        definition
-      );
+      const { entityPath, repositoryPath } =
+        await generateEntityResources(project, definition);
 
-      console.log("\nEntity generated successfully!");
-      console.log(`Created: ${filePath}`);
+      console.log("\nResources generated successfully!");
+      console.log(`Entity: ${entityPath}`);
+      console.log(`Repository: ${repositoryPath}`);
     });
   });
+
 
 
 await program.parseAsync();
