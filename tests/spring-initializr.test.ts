@@ -386,4 +386,55 @@ describe("Spring Initializr project generation", () => {
 
     expect(url.searchParams.get("packaging")).toBe("war");
   });
+
+    it.each([
+    {
+        buildTool: "maven" as BuildTool,
+        wrapper: "mvnw"
+    },
+    {
+        buildTool: "gradle" as BuildTool,
+        wrapper: "gradlew"
+    }
+    ])(
+    "makes $wrapper executable",
+    async ({ buildTool, wrapper }) => {
+        const zip = new AdmZip();
+
+        zip.addFile(
+        wrapper,
+        Buffer.from("#!/bin/sh\necho wrapper\n")
+        );
+
+        vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+            new Response(
+            new Uint8Array(zip.toBuffer()),
+            { status: 200 }
+            )
+        )
+        );
+
+        await generateSpringProject(
+        createOptions(buildTool, "21")
+        );
+
+        const wrapperPath = path.join(
+        testDirectory,
+        "test-project",
+        wrapper
+        );
+
+        expect(
+        fs.existsSync(wrapperPath)
+        ).toBe(true);
+
+        if (process.platform !== "win32") {
+        const stats = fs.statSync(wrapperPath);
+
+        expect(stats.mode & 0o111).toBe(0o111);
+        }
+    }
+    );
 });
