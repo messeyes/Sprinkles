@@ -15,6 +15,10 @@ import {
 
 import { isValidProjectName } from "../../utils/validate-project-name.js";
 
+import {
+  isJavaCompatible
+} from "../../spring/java-compatibility.js";
+
 export type ProjectConfig = Omit<ProjectOptions, "projectName">;
 
 function isRecord(
@@ -64,6 +68,12 @@ export function validateProjectConfig(
     )
   ) {
     throw new Error("Invalid Spring Boot version.");
+  }
+
+  if (!isJavaCompatible(javaVersion, springBootVersion)) {
+    throw new Error(
+      `Java ${javaVersion} is not compatible with Spring Boot ${springBootVersion}.`
+    );
   }
 
   if (
