@@ -12,10 +12,6 @@ import type {
   ProjectOptions
 } from "../../types/project-options.js";
 
-import {
-  generateProjectStructure
-} from "./project-structure.js";
-
 export async function generateSpringProject(
   options: ProjectOptions
 ): Promise<void> {
@@ -29,16 +25,6 @@ export async function generateSpringProject(
   if (existsSync(projectPath)) {
     throw new Error(
       `Directory "${projectName}" already exists.`
-    );
-  }
-
-  if (
-    options.architecture !== undefined &&
-    options.architecture !== "standard" &&
-    options.architecture !== "layered"
-  ) {
-    throw new Error(
-      `Unsupported project architecture: ${options.architecture}`
     );
   }
 
@@ -107,14 +93,6 @@ export async function generateSpringProject(
 
   try {
     zip.extractAllTo(projectPath, true);
-
-    await generateProjectStructure(
-      projectPath,
-      options.packageName,
-      options.architecture ?? "standard",
-      options.dependencies,
-      options.springBootVersion
-    );
 
     console.log(
       `Spring Boot project created: ${projectName}`
