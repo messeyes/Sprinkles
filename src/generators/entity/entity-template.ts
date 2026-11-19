@@ -16,6 +16,32 @@ const JAVA_TYPES: Record<FieldType, string> = {
   LocalDate: "LocalDate"
 };
 
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function createGetter(
+  name: string,
+  type: string
+): string {
+  const methodName = `get${capitalize(name)}`;
+
+  return `    public ${type} ${methodName}() {
+        return this.${name};
+    }`;
+}
+
+function createSetter(
+  name: string,
+  type: string
+): string {
+  const methodName = `set${capitalize(name)}`;
+
+  return `    public void ${methodName}(${type} ${name}) {
+        this.${name} = ${name};
+    }`;
+}
+
 export function createEntityTemplate(
   definition: EntityDefinition,
   packageName: string
@@ -60,6 +86,18 @@ export function createEntityTemplate(
     })
     .join("\n\n");
 
+  const methods = [
+    createGetter("id", "Long"),
+    ...definition.fields.flatMap((field) => {
+      const type = JAVA_TYPES[field.type];
+
+      return [
+        createGetter(field.name, type),
+        createSetter(field.name, type)
+      ];
+    })
+  ].join("\n\n");
+
   return `package ${packageName}.entity;
 
 ${importStatements}
@@ -75,7 +113,8 @@ ${fields}
 
     public ${definition.name}() {
     }
+
+${methods}
 }
 `;
 }
-    
