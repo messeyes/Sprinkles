@@ -71,4 +71,37 @@ describe("Resolve project options", () => {
     expect(options.springBootVersion).toBe("4.1.2");
     expect(options.javaVersion).toBe("21");
   });
+
+  it("rejects invalid artifact IDs when using project name", () => {
+    expect(() =>
+      resolveProjectOptions(
+        "MyApi",
+        config,
+        true
+      )
+    ).toThrow("Invalid Artifact ID");
+  });
+
+  it("rejects project names starting with numbers", () => {
+    expect(() =>
+      resolveProjectOptions(
+        "123api",
+        config,
+        true
+      )
+    ).toThrow("Invalid Artifact ID");
+  });
+
+  it("accepts valid project names as artifact IDs", () => {
+    const options = resolveProjectOptions(
+      "my-api",
+      config,
+      true
+    );
+
+    expect(options.artifactId).toBe("my-api");
+    expect(options.packageName).toBe(
+      "com.messeyes.myapi"
+    );
+  });
 });

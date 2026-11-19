@@ -7,7 +7,9 @@ import type {
 } from "../core/config/project-config.js";
 
 import {
-  getDefaultPackageName
+  getDefaultPackageName,
+  validateArtifactId,
+  validatePackageName
 } from "./validate-project-metadata.js";
 
 export function resolveProjectOptions(
@@ -22,13 +24,29 @@ export function resolveProjectOptions(
     };
   }
 
+  if (!validateArtifactId(projectName)) {
+    throw new Error(
+      `Invalid Artifact ID: "${projectName}". ` +
+      "Use lowercase letters, numbers and hyphens, " +
+      "starting with a letter."
+    );
+  }
+
+  const packageName = getDefaultPackageName(
+    config.groupId,
+    projectName
+  );
+
+  if (!validatePackageName(packageName)) {
+    throw new Error(
+      `Invalid package name generated from project name: "${packageName}".`
+    );
+  }
+
   return {
     ...config,
     projectName,
     artifactId: projectName,
-    packageName: getDefaultPackageName(
-      config.groupId,
-      projectName
-    )
+    packageName
   };
 }
