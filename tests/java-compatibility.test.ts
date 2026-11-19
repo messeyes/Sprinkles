@@ -5,7 +5,7 @@ import {
   getMinimumJavaVersion,
   isJavaCompatible,
   validateJavaVersion
-} from "../src/services/java-compatibility.js";
+} from "../src/spring/java-compatibility.js";
 
 const javaVersions = [
   { id: "17", name: "17" },

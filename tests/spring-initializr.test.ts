@@ -14,7 +14,7 @@ import path from "node:path";
 
 import {
   generateSpringProject
-} from "../src/services/spring-initializr.js";
+} from "../src/generators/project/spring-initializr.js";
 
 import type {
   BuildTool,

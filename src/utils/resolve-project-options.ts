@@ -4,7 +4,7 @@ import type {
 
 import type {
   ProjectConfig
-} from "../services/project-config.js";
+} from "../core/config/project-config.js";
 
 import {
   getDefaultPackageName

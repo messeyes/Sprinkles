@@ -6,7 +6,7 @@ import {
 
 import type {
   ProjectConfig
-} from "../src/services/project-config.js";
+} from "../src/core/config/project-config.js";
 
 import {
   resolveProjectOptions

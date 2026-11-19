@@ -17,7 +17,7 @@ import path from "node:path";
 
 import {
   generateProjectStructure
-} from "../src/services/project-structure.js";
+} from "../src/generators/project/project-structure.js";
 
 const temporaryDirectories: string[] = [];
 

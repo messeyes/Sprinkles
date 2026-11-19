@@ -6,7 +6,7 @@ import {
 
 import {
   validateProjectConfig
-} from "../src/services/project-config.js";
+} from "../src/core/config/project-config.js";
 
 const validConfig = {
   buildTool: "gradle",

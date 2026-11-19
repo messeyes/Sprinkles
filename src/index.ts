@@ -8,16 +8,16 @@ import {
 
 import {
   askProjectOptions
-} from "./prompts/project-prompts.js";
+} from "./cli/prompts/project-prompts.js";
 
 import {
   generateSpringProject
-} from "./services/spring-initializr.js";
+} from "./generators/project/spring-initializr.js";
 
 import {
   loadProjectConfig,
   saveProjectConfig
-} from "./services/project-config.js";
+} from "./core/config/project-config.js";
 
 import {
   resolveProjectOptions

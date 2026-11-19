@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeVersion,
   isStableVersion
-} from "../src/services/spring-metadata.js";
+} from "../src/spring/spring-metadata.js";
 
 describe("Spring Boot version normalization", () => {
   it.each([

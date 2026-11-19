@@ -8,7 +8,7 @@ import {
 
 import {
   getSpringMetadata
-} from "../src/services/spring-metadata.js";
+} from "../src/spring/spring-metadata.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();

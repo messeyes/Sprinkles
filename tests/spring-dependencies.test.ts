@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isDependencyCompatible,
   filterDependencies
-} from "../src/services/spring-dependencies.js";
+} from "../src/spring/spring-dependencies.js";
 
 describe("Spring dependency compatibility", () => {
   it("accepts dependencies without version restrictions", () => {

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   searchDependencies,
   getDependencyNames
-} from "../src/prompts/dependency-prompts.js";
+} from "../src/cli/prompts/dependency-prompts.js";
 
 import type {
   SpringDependencyGroup
