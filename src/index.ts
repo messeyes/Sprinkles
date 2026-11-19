@@ -35,6 +35,10 @@ import {
   detectSpringProject
 } from "./core/project/detect-spring-project.js";
 
+import {
+  generateEntity
+} from "./generators/entity/entity-generator.js";
+
 interface CliOptions {
   config?: string;
   saveConfig?: boolean;
@@ -140,18 +144,21 @@ generateCommand
     await runCommand(async () => {
       const project = await detectSpringProject();
 
-      console.log(`\nProject package: ${project.packageName}`);
-      console.log(`Build tool: ${project.buildTool}`);
+      console.log(
+        `\nProject package: ${project.packageName}`
+      );
 
       const definition = await askEntityFields(name);
 
-      console.log("\nEntity definition:");
-      console.log(JSON.stringify(definition, null, 2));
-
-      console.log(
-        "\nEntity configuration completed successfully."
+      const filePath = await generateEntity(
+        project,
+        definition
       );
+
+      console.log("\nEntity generated successfully!");
+      console.log(`Created: ${filePath}`);
     });
   });
+
 
 await program.parseAsync();
