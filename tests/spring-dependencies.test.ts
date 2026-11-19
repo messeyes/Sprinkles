@@ -33,6 +33,35 @@ describe("Spring dependency compatibility", () => {
     ).toBe(expected);
   });
 
+  it("treats a bare version as a minimum version", () => {
+    const dependency = {
+      id: "mongodb",
+      name: "MongoDB",
+      versionRange: "4.0.0.RELEASE"
+    };
+
+    expect(
+      isDependencyCompatible(dependency, "3.5.0")
+    ).toBe(false);
+
+    expect(
+      isDependencyCompatible(dependency, "4.0.0")
+    ).toBe(true);
+
+    expect(
+      isDependencyCompatible(dependency, "4.1.2")
+    ).toBe(true);
+  });
+
+  it("rejects unparseable version ranges", () => {
+    expect(
+      isDependencyCompatible(
+        { id: "bad", name: "Bad", versionRange: "latest" },
+        "4.1.2"
+      )
+    ).toBe(false);
+  });
+
   it("removes incompatible dependencies and empty groups", () => {
     const groups = [
       {

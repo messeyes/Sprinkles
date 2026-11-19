@@ -229,6 +229,146 @@ describe("Spring Initializr project generation", () => {
     );
   });
 
+  it("refuses to overwrite an existing directory", async () => {
+    const fetchMock = mockSpringInitializr();
+
+    fs.mkdirSync(path.join(testDirectory, "test-project"));
+
+    await expect(
+      generateSpringProject(createOptions("maven", "17"))
+    ).rejects.toThrow(
+      'Directory "test-project" already exists.'
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates network errors without creating the project", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("offline"))
+    );
+
+    await expect(
+      generateSpringProject(createOptions("maven", "17"))
+    ).rejects.toThrow("offline");
+
+    expect(
+      fs.existsSync(path.join(testDirectory, "test-project"))
+    ).toBe(false);
+  });
+
+  it("reports HTTP errors without creating the project", async () => {
+    vi.spyOn(console, "error").mockImplementation(
+      () => undefined
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("boom", { status: 500 })
+      )
+    );
+
+    await expect(
+      generateSpringProject(createOptions("maven", "17"))
+    ).rejects.toThrow(
+      "Spring Initializr request failed: 500"
+    );
+
+    expect(
+      fs.existsSync(path.join(testDirectory, "test-project"))
+    ).toBe(false);
+  });
+
+  it("rejects invalid ZIP content without creating the project", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array(Buffer.from("not a zip")))
+      )
+    );
+
+    await expect(
+      generateSpringProject(createOptions("maven", "17"))
+    ).rejects.toThrow("Invalid or unsupported zip format");
+
+    expect(
+      fs.existsSync(path.join(testDirectory, "test-project"))
+    ).toBe(false);
+  });
+
+  it("preserves the original project structure from the archive", async () => {
+    const zip = new AdmZip();
+
+    zip.addFile(
+      "pom.xml",
+      Buffer.from("<project></project>")
+    );
+
+    zip.addFile(
+      "src/main/java/com/example/testproject/DemoApplication.java",
+      Buffer.from("package com.example.testproject;")
+    );
+
+    zip.addFile(
+      "src/main/resources/application.properties",
+      Buffer.from("spring.application.name=test-project")
+    );
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array(zip.toBuffer()), {
+          status: 200
+        })
+      )
+    );
+
+    await generateSpringProject(
+      createOptions("maven", "17")
+    );
+
+    const projectPath = path.join(
+      testDirectory,
+      "test-project"
+    );
+
+    expect(
+      fs.existsSync(path.join(projectPath, "pom.xml"))
+    ).toBe(true);
+
+    expect(
+      fs.existsSync(
+        path.join(
+          projectPath,
+          "src/main/java/com/example/testproject/DemoApplication.java"
+        )
+      )
+    ).toBe(true);
+
+    expect(
+      fs.existsSync(
+        path.join(
+          projectPath,
+          "src/main/resources/application.properties"
+        )
+      )
+    ).toBe(true);
+
+    expect(
+      fs.existsSync(
+        path.join(projectPath, "src/main/java/HelloController.java")
+      )
+    ).toBe(false);
+
+    expect(
+      fs.existsSync(
+        path.join(projectPath, "src/main/java/com/example/testproject/controller")
+      )
+    ).toBe(false);
+  });
+
   it("supports WAR packaging", async () => {
     const fetchMock = mockSpringInitializr();
 
