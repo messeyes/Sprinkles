@@ -31,7 +31,11 @@ export function isDependencyCompatible(
   );
 
   if (!match) {
-    return false;
+    try {
+      return compareVersions(bootVersion, range) >= 0;
+    } catch {
+      return false;
+    }
   }
 
   const [, lowerBracket, minText, maxText, upperBracket] = match;
