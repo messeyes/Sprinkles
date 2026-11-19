@@ -1,12 +1,16 @@
 import AdmZip from "adm-zip";
 
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   rmSync
 } from "node:fs";
 
-import { resolve } from "node:path";
+import {
+  join,
+  resolve
+} from "node:path";
 
 import type {
   ProjectOptions
@@ -93,6 +97,22 @@ export async function generateSpringProject(
 
   try {
     zip.extractAllTo(projectPath, true);
+
+    if (process.platform !== "win32") {
+      const wrapper =
+        options.buildTool === "maven"
+          ? "mvnw"
+          : "gradlew";
+
+      const wrapperPath = join(
+        projectPath,
+        wrapper
+      );
+
+      if (existsSync(wrapperPath)) {
+        chmodSync(wrapperPath, 0o755);
+      }
+    }
 
     console.log(
       `Spring Boot project created: ${projectName}`
