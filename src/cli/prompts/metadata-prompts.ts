@@ -2,14 +2,14 @@ import { input, select } from "@inquirer/prompts";
 
 import type {
   Packaging
-} from "../types/project-options.js";
+} from "../../types/project-options.js";
 
 import {
   validateGroupId,
   validateArtifactId,
   validatePackageName,
   getDefaultPackageName
-} from "../utils/validate-project-metadata.js";
+} from "../../utils/validate-project-metadata.js";
 
 export interface ProjectMetadata {
   groupId: string;

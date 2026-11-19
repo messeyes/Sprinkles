@@ -8,7 +8,7 @@ import {
 import type {
   SpringDependency,
   SpringDependencyGroup
-} from "../types/spring-dependency.js";
+} from "../../types/spring-dependency.js";
 
 type DependencyAction =
   | "search"

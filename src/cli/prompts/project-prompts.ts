@@ -6,29 +6,29 @@ import {
 import type {
   BuildTool,
   ProjectOptions
-} from "../types/project-options.js";
+} from "../../types/project-options.js";
 
 import type {
   SpringDependencyGroup
-} from "../types/spring-dependency.js";
+} from "../../types/spring-dependency.js";
 
 import type {
   ProjectArchitecture
-} from "../types/project-options.js";
+} from "../../types/project-options.js";
 
 import {
   getSpringMetadata,
   isStableVersion
-} from "../services/spring-metadata.js";
+} from "../../spring/spring-metadata.js";
 
 import {
   filterDependencies
-} from "../services/spring-dependencies.js";
+} from "../../spring/spring-dependencies.js";
 
 import {
   filterJavaVersions,
   validateJavaVersion
-} from "../services/java-compatibility.js";
+} from "../../spring/java-compatibility.js";
 
 import {
   askDependencies,
