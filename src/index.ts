@@ -11,6 +11,10 @@ import {
 } from "./cli/prompts/project-prompts.js";
 
 import {
+  askEntityFields
+} from "./cli/prompts/entity-prompts.js";
+
+import {
   generateSpringProject
 } from "./generators/project/spring-initializr.js";
 
@@ -22,6 +26,10 @@ import {
 import {
   resolveProjectOptions
 } from "./utils/resolve-project-options.js";
+
+import {
+  validateEntityDefinition
+} from "./utils/validate-entity-definition.js";
 
 interface CliOptions {
   config?: string;
@@ -113,6 +121,38 @@ program
       await generateSpringProject(options);
 
       console.log("Project generated successfully!");
+    });
+  });
+
+const generateCommand = program
+  .command("generate")
+  .description("Generate resources for a Spring Boot project");
+
+generateCommand
+  .command("entity")
+  .description("Generate a new entity")
+  .argument("<name>", "entity name")
+  .action(async (name: string) => {
+    await runCommand(async () => {
+      validateEntityDefinition({
+        name,
+        fields: [
+          {
+            name: "placeholder",
+            type: "String",
+            required: false
+          }
+        ]
+      });
+
+      const definition = await askEntityFields(name);
+
+      console.log("\nEntity definition:");
+      console.log(JSON.stringify(definition, null, 2));
+
+      console.log(
+        "\nEntity configuration completed successfully."
+      );
     });
   });
 
