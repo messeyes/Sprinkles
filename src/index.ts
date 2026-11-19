@@ -31,6 +31,10 @@ import {
   validateEntityDefinition
 } from "./utils/validate-entity-definition.js";
 
+import {
+  detectSpringProject
+} from "./core/project/detect-spring-project.js";
+
 interface CliOptions {
   config?: string;
   saveConfig?: boolean;
@@ -134,16 +138,10 @@ generateCommand
   .argument("<name>", "entity name")
   .action(async (name: string) => {
     await runCommand(async () => {
-      validateEntityDefinition({
-        name,
-        fields: [
-          {
-            name: "placeholder",
-            type: "String",
-            required: false
-          }
-        ]
-      });
+      const project = await detectSpringProject();
+
+      console.log(`\nProject package: ${project.packageName}`);
+      console.log(`Build tool: ${project.buildTool}`);
 
       const definition = await askEntityFields(name);
 
