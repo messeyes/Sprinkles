@@ -33,12 +33,17 @@ import {
   generateService
 } from "./service/service-generator.js";
 
+import {
+  generateController
+} from "./controller/controller-generator.js";
+
 interface GeneratedResources {
   entityPath: string;
   repositoryPath: string;
   dtoPath: string;
   responseDtoPath: string;
   servicePath: string;
+  controllerPath: string;
 }
 
 async function fileExists(
@@ -96,12 +101,19 @@ export async function generateEntityResources(
     `${definition.name}Service.java`
   );
 
+  const controllerPath = path.join(
+    project.sourcePath,
+    "controller",
+    `${definition.name}Controller.java`
+  );
+
   const resources = [
     { name: "Entity", filePath: entityPath },
     { name: "Repository", filePath: repositoryPath },
     { name: "Request DTO", filePath: dtoPath },
     { name: "Response DTO", filePath: responseDtoPath },
-    { name: "Service", filePath: servicePath }
+    { name: "Service", filePath: servicePath },
+    { name: "Controller", filePath: controllerPath }
   ];
 
   for (const resource of resources) {
@@ -135,12 +147,17 @@ export async function generateEntityResources(
       await generateService(project, definition)
     );
 
+    createdFiles.push(
+      await generateController(project, definition)
+    );
+
     return {
       entityPath,
       repositoryPath,
       dtoPath,
       responseDtoPath,
-      servicePath
+      servicePath,
+      controllerPath
     };
   } catch (error) {
     const cleanupErrors: unknown[] = [];

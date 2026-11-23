@@ -151,7 +151,8 @@ generateCommand
         repositoryPath,
         dtoPath,
         responseDtoPath,
-        servicePath
+        servicePath,
+        controllerPath
       } = await generateEntityResources(project, definition);
 
       console.log("\nResources generated successfully!");
@@ -160,6 +161,7 @@ generateCommand
       console.log(`Request DTO: ${dtoPath}`);
       console.log(`Response DTO: ${responseDtoPath}`);
       console.log(`Service: ${servicePath}`);
+      console.log(`Controller: ${controllerPath}`);
     });
   });
 

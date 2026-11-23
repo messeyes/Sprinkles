@@ -35,6 +35,10 @@ import {
   generateService
 } from "../src/generators/service/service-generator.js";
 
+import {
+  generateController
+} from "../src/generators/controller/controller-generator.js";
+
 vi.mock(
   "../src/generators/dto/dto-generator.js",
   async (importOriginal) => {
@@ -63,6 +67,20 @@ vi.mock(
   }
 );
 
+vi.mock(
+  "../src/generators/controller/controller-generator.js",
+  async (importOriginal) => {
+    const original = await importOriginal<
+      typeof import("../src/generators/controller/controller-generator.js")
+    >();
+
+    return {
+      ...original,
+      generateController: vi.fn(original.generateController)
+    };
+  }
+);
+
 describe("generateEntityResources", () => {
   let temporaryDirectory: string;
   let project: SpringProject;
@@ -79,6 +97,38 @@ describe("generateEntityResources", () => {
   };
 
   beforeEach(async () => {
+    vi.resetAllMocks();
+
+    vi.mocked(generateDto).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/dto/dto-generator.js")
+        >("../src/generators/dto/dto-generator.js");
+
+        return original.generateDto(...args);
+      }
+    );
+
+    vi.mocked(generateService).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/service/service-generator.js")
+        >("../src/generators/service/service-generator.js");
+
+        return original.generateService(...args);
+      }
+    );
+
+    vi.mocked(generateController).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/controller/controller-generator.js")
+        >("../src/generators/controller/controller-generator.js");
+
+        return original.generateController(...args);
+      }
+    );
+
     temporaryDirectory = await mkdtemp(
       path.join(os.tmpdir(), "sprinkles-resources-")
     );
@@ -95,21 +145,20 @@ describe("generateEntityResources", () => {
   });
 
   afterEach(async () => {
-    vi.clearAllMocks();
-
     await rm(temporaryDirectory, {
       recursive: true,
       force: true
     });
   });
 
-  it("generates an entity, repository, DTOs and service", async () => {
+  it("generates an entity, repository, DTOs, service and controller", async () => {
     const {
       entityPath,
       repositoryPath,
       dtoPath,
       responseDtoPath,
-      servicePath
+      servicePath,
+      controllerPath
     } = await generateEntityResources(project, definition);
 
     const entity = await readFile(entityPath, "utf8");
@@ -117,6 +166,7 @@ describe("generateEntityResources", () => {
     const requestDto = await readFile(dtoPath, "utf8");
     const responseDto = await readFile(responseDtoPath, "utf8");
     const service = await readFile(servicePath, "utf8");
+    const controller = await readFile(controllerPath, "utf8");
 
     expect(entity).toContain("class Book");
 
@@ -127,39 +177,43 @@ describe("generateEntityResources", () => {
     expect(requestDto).toContain(
       "public record BookRequest("
     );
-
     expect(requestDto).toContain("String title");
 
     expect(responseDto).toContain(
       "public record BookResponse("
     );
-
     expect(responseDto).toContain("Long id");
     expect(responseDto).toContain("String title");
 
     expect(service).toContain(
       "public class BookService"
     );
-
     expect(service).toContain(
       "public BookResponse create(BookRequest request)"
     );
-
     expect(service).toContain(
       "public List<BookResponse> findAll()"
     );
-
     expect(service).toContain(
       "public BookResponse findById(Long id)"
     );
-
     expect(service).toContain(
       "public BookResponse update(Long id, BookRequest request)"
     );
-
     expect(service).toContain(
       "public void delete(Long id)"
     );
+
+    expect(controller).toContain(
+      "public class BookController"
+    );
+    expect(controller).toContain(
+      '@RequestMapping("/api/books")'
+    );
+    expect(controller).toContain("@PostMapping");
+    expect(controller).toContain("@GetMapping");
+    expect(controller).toContain('@PutMapping("/{id}")');
+    expect(controller).toContain('@DeleteMapping("/{id}")');
   });
 
   it("does not create an entity if the repository already exists", async () => {
@@ -173,10 +227,7 @@ describe("generateEntityResources", () => {
     });
 
     await writeFile(
-      path.join(
-        repositoryDirectory,
-        "BookRepository.java"
-      ),
+      path.join(repositoryDirectory, "BookRepository.java"),
       "// Existing repository"
     );
 
@@ -184,14 +235,10 @@ describe("generateEntityResources", () => {
       generateEntityResources(project, definition)
     ).rejects.toThrow("Repository already exists");
 
-    const entityPath = path.join(
-      project.sourcePath,
-      "entity",
-      "Book.java"
-    );
-
     await expect(
-      access(entityPath)
+      access(
+        path.join(project.sourcePath, "entity", "Book.java")
+      )
     ).rejects.toMatchObject({
       code: "ENOENT"
     });
@@ -221,10 +268,7 @@ describe("generateEntityResources", () => {
       "BookRequest.java"
     );
 
-    await writeFile(
-      dtoPath,
-      "// Existing DTO"
-    );
+    await writeFile(dtoPath, "// Existing DTO");
 
     await expect(
       generateEntityResources(project, definition)
@@ -235,11 +279,7 @@ describe("generateEntityResources", () => {
     ).toBe("// Existing DTO");
 
     for (const filePath of [
-      path.join(
-        project.sourcePath,
-        "entity",
-        "Book.java"
-      ),
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
         "repository",
@@ -264,30 +304,19 @@ describe("generateEntityResources", () => {
     ).rejects.toThrow("Failed to generate DTO");
 
     const expectedFiles = [
-      path.join(
-        project.sourcePath,
-        "entity",
-        "Book.java"
-      ),
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
         "repository",
         "BookRepository.java"
       ),
+      path.join(project.sourcePath, "dto", "BookRequest.java"),
+      path.join(project.sourcePath, "dto", "BookResponse.java"),
+      path.join(project.sourcePath, "service", "BookService.java"),
       path.join(
         project.sourcePath,
-        "dto",
-        "BookRequest.java"
-      ),
-      path.join(
-        project.sourcePath,
-        "dto",
-        "BookResponse.java"
-      ),
-      path.join(
-        project.sourcePath,
-        "service",
-        "BookService.java"
+        "controller",
+        "BookController.java"
       )
     ];
 
@@ -331,11 +360,7 @@ describe("generateEntityResources", () => {
     ).toBe("// Existing response DTO");
 
     for (const filePath of [
-      path.join(
-        project.sourcePath,
-        "entity",
-        "Book.java"
-      ),
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
         "repository",
@@ -384,11 +409,7 @@ describe("generateEntityResources", () => {
     ).toBe("// Existing service");
 
     for (const filePath of [
-      path.join(
-        project.sourcePath,
-        "entity",
-        "Book.java"
-      ),
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
         "repository",
@@ -423,30 +444,103 @@ describe("generateEntityResources", () => {
     ).rejects.toThrow("Service generation failed");
 
     const expectedFiles = [
-      path.join(
-        project.sourcePath,
-        "entity",
-        "Book.java"
-      ),
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
         "repository",
         "BookRepository.java"
       ),
+      path.join(project.sourcePath, "dto", "BookRequest.java"),
+      path.join(project.sourcePath, "dto", "BookResponse.java"),
+      path.join(project.sourcePath, "service", "BookService.java"),
       path.join(
         project.sourcePath,
-        "dto",
-        "BookRequest.java"
+        "controller",
+        "BookController.java"
+      )
+    ];
+
+    for (const filePath of expectedFiles) {
+      await expect(
+        access(filePath)
+      ).rejects.toMatchObject({
+        code: "ENOENT"
+      });
+    }
+  });
+
+  it("does not generate resources if the controller already exists", async () => {
+    const controllerDirectory = path.join(
+      project.sourcePath,
+      "controller"
+    );
+
+    await mkdir(controllerDirectory, {
+      recursive: true
+    });
+
+    const controllerPath = path.join(
+      controllerDirectory,
+      "BookController.java"
+    );
+
+    await writeFile(
+      controllerPath,
+      "// Existing controller"
+    );
+
+    await expect(
+      generateEntityResources(project, definition)
+    ).rejects.toThrow("Controller already exists");
+
+    expect(
+      await readFile(controllerPath, "utf8")
+    ).toBe("// Existing controller");
+
+    const expectedFiles = [
+      path.join(project.sourcePath, "entity", "Book.java"),
+      path.join(
+        project.sourcePath,
+        "repository",
+        "BookRepository.java"
       ),
+      path.join(project.sourcePath, "dto", "BookRequest.java"),
+      path.join(project.sourcePath, "dto", "BookResponse.java"),
+      path.join(project.sourcePath, "service", "BookService.java")
+    ];
+
+    for (const filePath of expectedFiles) {
+      await expect(
+        access(filePath)
+      ).rejects.toMatchObject({
+        code: "ENOENT"
+      });
+    }
+  });
+
+  it("rolls back generated files when controller generation fails", async () => {
+    vi.mocked(generateController).mockRejectedValueOnce(
+      new Error("Controller generation failed")
+    );
+
+    await expect(
+      generateEntityResources(project, definition)
+    ).rejects.toThrow("Controller generation failed");
+
+    const expectedFiles = [
+      path.join(project.sourcePath, "entity", "Book.java"),
       path.join(
         project.sourcePath,
-        "dto",
-        "BookResponse.java"
+        "repository",
+        "BookRepository.java"
       ),
+      path.join(project.sourcePath, "dto", "BookRequest.java"),
+      path.join(project.sourcePath, "dto", "BookResponse.java"),
+      path.join(project.sourcePath, "service", "BookService.java"),
       path.join(
         project.sourcePath,
-        "service",
-        "BookService.java"
+        "controller",
+        "BookController.java"
       )
     ];
 
