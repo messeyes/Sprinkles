@@ -13,9 +13,11 @@ I started this project to make Spring Boot project setup easier and to learn mor
 - Custom project metadata and package names.
 - Support for JAR and WAR packaging.
 - Save and reuse project configurations.
-- Generate JPA entities in existing Spring Boot projects.
+- Generate JPA entities and CRUD resources in existing Spring Boot projects.
 - Automatic detection of Spring Boot projects.
 - Validation of project names and metadata.
+- Protection against overwriting existing files.
+- Rollback when resource generation fails.
 
 ## Installation
 
@@ -81,11 +83,11 @@ To use the new project name as the artifact ID and regenerate the package name:
 sprinkles another-api --config sprinkles.json --use-project-name
 ```
 
-## Generating Entities
+## Generating CRUD Resources
 
-Sprinkles can also generate JPA entities inside existing Spring Boot projects.
+Sprinkles can generate a complete CRUD structure inside an existing Spring Boot project.
 
-Navigate to a Spring Boot project:
+Navigate to your project:
 
 ```bash
 cd my-api
@@ -99,7 +101,7 @@ sprinkles generate entity Book
 
 The CLI detects the project's Java package and asks you to define the entity fields, their types and whether they are required.
 
-For example, an entity named `Book` can contain:
+For example:
 
 | Field | Type | Required |
 |---|---|---|
@@ -109,22 +111,50 @@ For example, an entity named `Book` can contain:
 | price | BigDecimal | No |
 | publishedAt | LocalDate | No |
 
-Sprinkles creates the entity in the project's `entity` package:
+Sprinkles generates the following structure:
 
 ```text
 src/main/java/com/example/myapi/
 ├── MyApiApplication.java
-└── entity/
-    └── Book.java
+├── entity/
+│   └── Book.java
+├── repository/
+│   └── BookRepository.java
+├── dto/
+│   ├── BookRequest.java
+│   └── BookResponse.java
+├── service/
+│   └── BookService.java
+└── controller/
+    └── BookController.java
 ```
 
-The generated class includes JPA annotations, an automatically generated `Long` primary key, a default constructor and column constraints for required fields.
+Each generated file has a specific responsibility:
+
+- **Entity:** Defines the JPA entity and its fields.
+- **Repository:** Handles database operations using Spring Data JPA.
+- **Request DTO:** Defines the data received by the API.
+- **Response DTO:** Defines the data returned by the API.
+- **Service:** Implements the CRUD operations.
+- **Controller:** Exposes the REST endpoints.
+
+### Generated Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/books` | Create a book |
+| GET | `/api/books` | List all books |
+| GET | `/api/books/{id}` | Find a book by ID |
+| PUT | `/api/books/{id}` | Update a book |
+| DELETE | `/api/books/{id}` | Delete a book |
 
 Supported field types currently include `String`, `Integer`, `Long`, `Boolean`, `BigDecimal` and `LocalDate`.
 
-Existing entity files are not overwritten.
+The generated entity includes JPA annotations, an automatically generated `Long` primary key, a default constructor and column constraints for required fields.
 
-Entity generation requires the appropriate JPA dependencies in the Spring Boot project.
+Existing files are not overwritten. If generation fails, Sprinkles attempts to remove the files created during that operation.
+
+CRUD generation requires Spring Web, Spring Data JPA and the appropriate database configuration.
 
 ## Running the Generated Project
 
