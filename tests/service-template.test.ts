@@ -156,4 +156,57 @@ describe("createServiceTemplate", () => {
         "entity.getAuthor()"
     );
     });
+
+    it("generates an update method", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        "public BookResponse update(Long id, BookRequest request)"
+    );
+
+    expect(result).toContain(
+        "entity.setTitle(request.title());"
+    );
+
+    expect(result).toContain(
+        "entity.setAuthor(request.author());"
+    );
+
+    expect(result).toContain(
+        "Book updatedEntity = repository.save(entity);"
+    );
+
+    expect(result).toContain(
+        "return toResponse(updatedEntity);"
+    );
+    });
+
+    it("generates a delete method", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        "public void delete(Long id)"
+    );
+
+    expect(result).toContain(
+        "repository.delete(entity);"
+    );
+    });
+
+    it("handles entities that do not exist", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        'new NoSuchElementException("Book not found: " + id)'
+    );
+    });
 });

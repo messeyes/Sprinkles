@@ -10,6 +10,16 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function createFieldSetters(
+  definition: EntityDefinition
+): string {
+  return definition.fields
+    .map((field) => {
+      return `        entity.set${capitalize(field.name)}(request.${field.name}());`;
+    })
+    .join("\n");
+}
+
 export function createServiceTemplate(
   definition: EntityDefinition,
   packageName: string
@@ -18,11 +28,7 @@ export function createServiceTemplate(
 
   const name = definition.name;
 
-  const setters = definition.fields
-    .map((field) => {
-      return `        entity.set${capitalize(field.name)}(request.${field.name}());`;
-    })
-    .join("\n");
+  const setters = createFieldSetters(definition);
 
   const responseFields = [
     "entity.getId()",
@@ -76,6 +82,28 @@ ${setters}
                 );
 
         return toResponse(entity);
+    }
+
+    public ${name}Response update(Long id, ${name}Request request) {
+        ${name} entity = repository.findById(id)
+                .orElseThrow(() ->
+                    new NoSuchElementException("${name} not found: " + id)
+                );
+
+${setters}
+
+        ${name} updatedEntity = repository.save(entity);
+
+        return toResponse(updatedEntity);
+    }
+
+    public void delete(Long id) {
+        ${name} entity = repository.findById(id)
+                .orElseThrow(() ->
+                    new NoSuchElementException("${name} not found: " + id)
+                );
+
+        repository.delete(entity);
     }
 
     private ${name}Response toResponse(${name} entity) {
