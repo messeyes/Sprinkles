@@ -66,38 +66,39 @@ describe("generateEntityResources", () => {
     });
   });
 
-  it("generates an entity, repository and request DTO", async () => {
-    const { entityPath, repositoryPath, dtoPath } =
-      await generateEntityResources(project, definition);
+  it("generates an entity, repository and both DTOs", async () => {
+    const {
+      entityPath,
+      repositoryPath,
+      dtoPath,
+      responseDtoPath
+    } = await generateEntityResources(project, definition);
 
     const entity = await readFile(entityPath, "utf-8");
     const repository = await readFile(repositoryPath, "utf-8");
-    const dto = await readFile(dtoPath, "utf-8");
+    const requestDto = await readFile(dtoPath, "utf-8");
+    const responseDto = await readFile(responseDtoPath, "utf-8");
 
     expect(entity).toContain("class Book");
 
-    expect(repository).toContain("extends JpaRepository<Book, Long>");
-
-    expect(dto).toContain("public record BookRequest(");
-
-    expect(dto).toContain("String title");
-  });
-
-  it("does not overwrite an existing entity", async () => {
-    const entityDirectory = path.join(project.sourcePath, "entity");
-
-    await mkdir(entityDirectory, { recursive: true });
-
-    const entityPath = path.join(entityDirectory, "Book.java");
-
-    await writeFile(entityPath, "// Existing entity");
-
-    await expect(generateEntityResources(project, definition)).rejects.toThrow(
-      "Entity already exists",
+    expect(repository).toContain(
+      "extends JpaRepository<Book, Long>"
     );
 
-    expect(await readFile(entityPath, "utf-8")).toBe("// Existing entity");
+    expect(requestDto).toContain(
+      "public record BookRequest("
+    );
+
+    expect(requestDto).toContain("String title");
+
+    expect(responseDto).toContain(
+      "public record BookResponse("
+    );
+
+    expect(responseDto).toContain("Long id");
+    expect(responseDto).toContain("String title");
   });
+
 
   it("does not create an entity if the repository already exists", async () => {
     const repositoryDirectory = path.join(project.sourcePath, "repository");
@@ -198,5 +199,42 @@ describe("generateEntityResources", () => {
     await expect(access(dtoPath)).rejects.toMatchObject({
       code: "ENOENT"
     });
+  });
+
+  it("does not generate resources if the response DTO exists", async () => {
+    const dtoDirectory = path.join(
+      project.sourcePath,
+      "dto"
+    );
+
+    await mkdir(dtoDirectory, { recursive: true });
+
+    const responseDtoPath = path.join(
+      dtoDirectory,
+      "BookResponse.java"
+    );
+
+    await writeFile(
+      responseDtoPath,
+      "// Existing response DTO"
+    );
+
+    await expect(
+      generateEntityResources(project, definition)
+    ).rejects.toThrow("Response DTO already exists");
+
+    expect(await readFile(responseDtoPath, "utf-8")).toBe(
+      "// Existing response DTO"
+    );
+
+    for (const filePath of [
+      path.join(project.sourcePath, "entity", "Book.java"),
+      path.join(project.sourcePath, "repository", "BookRepository.java"),
+      path.join(project.sourcePath, "dto", "BookRequest.java")
+    ]) {
+      await expect(access(filePath)).rejects.toMatchObject({
+        code: "ENOENT"
+      });
+    }
   });
 });

@@ -28,10 +28,6 @@ import {
 } from "./utils/resolve-project-options.js";
 
 import {
-  validateEntityDefinition
-} from "./utils/validate-entity-definition.js";
-
-import {
   detectSpringProject
 } from "./core/project/detect-spring-project.js";
 
@@ -138,7 +134,7 @@ const generateCommand = program
 
 generateCommand
   .command("entity")
-  .description("Generate a new entity and its repository")
+  .description("Generate an entity, repository and DTOs")
   .argument("<name>", "entity name")
   .action(async (name: string) => {
     await runCommand(async () => {
@@ -150,16 +146,19 @@ generateCommand
 
       const definition = await askEntityFields(name);
 
-      const { entityPath, repositoryPath, dtoPath } =
-        await generateEntityResources(project, definition);
+      const {
+        entityPath,
+        repositoryPath,
+        dtoPath,
+        responseDtoPath
+      } = await generateEntityResources(project, definition);
 
       console.log("\nResources generated successfully!");
       console.log(`Entity: ${entityPath}`);
       console.log(`Repository: ${repositoryPath}`);
-      console.log(`DTO: ${dtoPath}`);
+      console.log(`Request DTO: ${dtoPath}`);
+      console.log(`Response DTO: ${responseDtoPath}`);
     });
   });
-
-
 
 await program.parseAsync();

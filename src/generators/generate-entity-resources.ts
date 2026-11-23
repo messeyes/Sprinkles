@@ -8,11 +8,13 @@ import { validateEntityDefinition } from "../utils/validate-entity-definition.js
 import { generateEntity } from "./entity/entity-generator.js";
 import { generateRepository } from "./repository/repository-generator.js";
 import { generateDto } from "./dto/dto-generator.js";
+import { generateResponseDto } from "./dto/response-dto-generator.js";
 
 interface GeneratedResources {
   entityPath: string;
   repositoryPath: string;
   dtoPath: string;
+  responseDtoPath: string;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -56,10 +58,17 @@ export async function generateEntityResources(
     `${definition.name}Request.java`
   );
 
+  const responseDtoPath = path.join(
+    project.sourcePath,
+    "dto",
+    `${definition.name}Response.java`
+  );
+
   const resources = [
     { name: "Entity", filePath: entityPath },
     { name: "Repository", filePath: repositoryPath },
-    { name: "DTO", filePath: dtoPath }
+    { name: "Request DTO", filePath: dtoPath },
+    { name: "Response DTO", filePath: responseDtoPath }
   ];
 
   for (const resource of resources) {
@@ -85,10 +94,15 @@ export async function generateEntityResources(
       await generateDto(project, definition)
     );
 
+    createdFiles.push(
+      await generateResponseDto(project, definition)
+    );
+
     return {
       entityPath,
       repositoryPath,
-      dtoPath
+      dtoPath,
+      responseDtoPath
     };
   } catch (error) {
     const cleanupErrors: unknown[] = [];
