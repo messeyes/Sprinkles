@@ -1,5 +1,7 @@
-import { access, unlink } from "node:fs/promises";
-import path from "node:path";
+import {
+  access,
+  unlink
+} from "node:fs/promises";
 
 import type {
   EntityDefinition
@@ -37,6 +39,10 @@ import {
   generateController
 } from "./controller/controller-generator.js";
 
+import {
+  javaFilePath
+} from "./shared/java-files.js";
+
 interface GeneratedResources {
   entityPath: string;
   repositoryPath: string;
@@ -44,6 +50,15 @@ interface GeneratedResources {
   responseDtoPath: string;
   servicePath: string;
   controllerPath: string;
+}
+
+interface EntityResourceStep {
+  readonly name: string;
+  readonly filePath: string;
+  readonly generate: (
+    project: SpringProject,
+    definition: EntityDefinition
+  ) => Promise<string>;
 }
 
 async function fileExists(
@@ -71,55 +86,79 @@ export async function generateEntityResources(
 ): Promise<GeneratedResources> {
   validateEntityDefinition(definition);
 
-  const entityPath = path.join(
+  const entityPath = javaFilePath(
     project.sourcePath,
     "entity",
     `${definition.name}.java`
   );
 
-  const repositoryPath = path.join(
+  const repositoryPath = javaFilePath(
     project.sourcePath,
     "repository",
     `${definition.name}Repository.java`
   );
 
-  const dtoPath = path.join(
+  const dtoPath = javaFilePath(
     project.sourcePath,
     "dto",
     `${definition.name}Request.java`
   );
 
-  const responseDtoPath = path.join(
+  const responseDtoPath = javaFilePath(
     project.sourcePath,
     "dto",
     `${definition.name}Response.java`
   );
 
-  const servicePath = path.join(
+  const servicePath = javaFilePath(
     project.sourcePath,
     "service",
     `${definition.name}Service.java`
   );
 
-  const controllerPath = path.join(
+  const controllerPath = javaFilePath(
     project.sourcePath,
     "controller",
     `${definition.name}Controller.java`
   );
 
-  const resources = [
-    { name: "Entity", filePath: entityPath },
-    { name: "Repository", filePath: repositoryPath },
-    { name: "Request DTO", filePath: dtoPath },
-    { name: "Response DTO", filePath: responseDtoPath },
-    { name: "Service", filePath: servicePath },
-    { name: "Controller", filePath: controllerPath }
+  const steps: EntityResourceStep[] = [
+    {
+      name: "Entity",
+      filePath: entityPath,
+      generate: generateEntity
+    },
+    {
+      name: "Repository",
+      filePath: repositoryPath,
+      generate: generateRepository
+    },
+    {
+      name: "Request DTO",
+      filePath: dtoPath,
+      generate: generateDto
+    },
+    {
+      name: "Response DTO",
+      filePath: responseDtoPath,
+      generate: generateResponseDto
+    },
+    {
+      name: "Service",
+      filePath: servicePath,
+      generate: generateService
+    },
+    {
+      name: "Controller",
+      filePath: controllerPath,
+      generate: generateController
+    }
   ];
 
-  for (const resource of resources) {
-    if (await fileExists(resource.filePath)) {
+  for (const step of steps) {
+    if (await fileExists(step.filePath)) {
       throw new Error(
-        `${resource.name} already exists: ${resource.filePath}`
+        `${step.name} already exists: ${step.filePath}`
       );
     }
   }
@@ -127,29 +166,11 @@ export async function generateEntityResources(
   const createdFiles: string[] = [];
 
   try {
-    createdFiles.push(
-      await generateEntity(project, definition)
-    );
-
-    createdFiles.push(
-      await generateRepository(project, definition)
-    );
-
-    createdFiles.push(
-      await generateDto(project, definition)
-    );
-
-    createdFiles.push(
-      await generateResponseDto(project, definition)
-    );
-
-    createdFiles.push(
-      await generateService(project, definition)
-    );
-
-    createdFiles.push(
-      await generateController(project, definition)
-    );
+    for (const step of steps) {
+      createdFiles.push(
+        await step.generate(project, definition)
+      );
+    }
 
     return {
       entityPath,
