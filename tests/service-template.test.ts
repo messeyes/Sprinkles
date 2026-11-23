@@ -25,10 +25,12 @@ describe("createServiceTemplate", () => {
     ]
   };
 
+  const packageName = "com.example.demo";
+
   it("generates a Spring service", () => {
     const result = createServiceTemplate(
       definition,
-      "com.example.demo"
+      packageName
     );
 
     expect(result).toContain(
@@ -36,13 +38,16 @@ describe("createServiceTemplate", () => {
     );
 
     expect(result).toContain("@Service");
-    expect(result).toContain("public class BookService");
+
+    expect(result).toContain(
+      "public class BookService"
+    );
   });
 
   it("uses constructor injection", () => {
     const result = createServiceTemplate(
       definition,
-      "com.example.demo"
+      packageName
     );
 
     expect(result).toContain(
@@ -57,7 +62,7 @@ describe("createServiceTemplate", () => {
   it("maps request fields to the entity", () => {
     const result = createServiceTemplate(
       definition,
-      "com.example.demo"
+      packageName
     );
 
     expect(result).toContain(
@@ -70,19 +75,19 @@ describe("createServiceTemplate", () => {
   });
 
   it("saves the entity and returns a response DTO", () => {
-  const result = createServiceTemplate(
-    definition,
-    "com.example.demo"
-  );
+    const result = createServiceTemplate(
+      definition,
+      packageName
+    );
 
-  expect(result).toContain(
-    "repository.save(entity)"
-  );
+    expect(result).toContain(
+      "repository.save(entity)"
+    );
 
-  expect(result).toContain(
-    "return toResponse(savedEntity);"
-  );
-});
+    expect(result).toContain(
+      "return toResponse(savedEntity);"
+    );
+  });
 
   it("rejects invalid entity definitions", () => {
     expect(() =>
@@ -91,122 +96,149 @@ describe("createServiceTemplate", () => {
           name: "book",
           fields: definition.fields
         },
-        "com.example.demo"
+        packageName
       )
     ).toThrow();
   });
 
-    it("generates a findAll method", () => {
+  it("generates a findAll method", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        "public List<BookResponse> findAll()"
+      "public List<BookResponse> findAll()"
     );
 
     expect(result).toContain(
-        "repository.findAll()"
+      "repository.findAll()"
     );
 
     expect(result).toContain(
-        ".map(this::toResponse)"
+      ".map(this::toResponse)"
     );
-    });
+  });
 
-    it("generates a findById method", () => {
+  it("generates a findById method", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        "public BookResponse findById(Long id)"
+      "public BookResponse findById(Long id)"
     );
 
     expect(result).toContain(
-        "repository.findById(id)"
+      "return toResponse(findEntityById(id));"
     );
+  });
 
-    expect(result).toContain(
-        'new NoSuchElementException("Book not found: " + id)'
-    );
-    });
-
-    it("generates a reusable response mapper", () => {
+  it("generates a reusable response mapper", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        "private BookResponse toResponse(Book entity)"
+      "private BookResponse toResponse(Book entity)"
     );
 
     expect(result).toContain(
-        "entity.getId()"
+      "entity.getId()"
     );
 
     expect(result).toContain(
-        "entity.getTitle()"
+      "entity.getTitle()"
     );
 
     expect(result).toContain(
-        "entity.getAuthor()"
+      "entity.getAuthor()"
     );
-    });
+  });
 
-    it("generates an update method", () => {
+  it("generates an update method", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        "public BookResponse update(Long id, BookRequest request)"
+      "public BookResponse update(Long id, BookRequest request)"
     );
 
     expect(result).toContain(
-        "entity.setTitle(request.title());"
+      "Book entity = findEntityById(id);"
     );
 
     expect(result).toContain(
-        "entity.setAuthor(request.author());"
+      "entity.setTitle(request.title());"
     );
 
     expect(result).toContain(
-        "Book updatedEntity = repository.save(entity);"
+      "entity.setAuthor(request.author());"
     );
 
     expect(result).toContain(
-        "return toResponse(updatedEntity);"
+      "Book updatedEntity = repository.save(entity);"
     );
-    });
 
-    it("generates a delete method", () => {
+    expect(result).toContain(
+      "return toResponse(updatedEntity);"
+    );
+  });
+
+  it("generates a delete method", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        "public void delete(Long id)"
+      "public void delete(Long id)"
     );
 
     expect(result).toContain(
-        "repository.delete(entity);"
+      "repository.delete(findEntityById(id));"
     );
-    });
+  });
 
-    it("handles entities that do not exist", () => {
+  it("generates a reusable method to find entities by id", () => {
     const result = createServiceTemplate(
-        definition,
-        "com.example.demo"
+      definition,
+      packageName
     );
 
     expect(result).toContain(
-        'new NoSuchElementException("Book not found: " + id)'
+      "private Book findEntityById(Long id)"
     );
-    });
+
+    expect(result).toContain(
+      "return repository.findById(id)"
+    );
+
+    expect(result).toContain(
+      'new NoSuchElementException("Book not found: " + id)'
+    );
+  });
+
+  it("handles entities that do not exist", () => {
+    const result = createServiceTemplate(
+      definition,
+      packageName
+    );
+
+    expect(result).toContain(
+      "repository.findById(id)"
+    );
+
+    expect(result).toContain(
+      ".orElseThrow(() ->"
+    );
+
+    expect(result).toContain(
+      'new NoSuchElementException("Book not found: " + id)'
+    );
+  });
 });

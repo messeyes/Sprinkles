@@ -14,10 +14,23 @@ function createFieldSetters(
   definition: EntityDefinition
 ): string {
   return definition.fields
-    .map((field) => {
-      return `        entity.set${capitalize(field.name)}(request.${field.name}());`;
-    })
+    .map(
+      (field) =>
+        `        entity.set${capitalize(field.name)}(request.${field.name}());`
+    )
     .join("\n");
+}
+
+function createResponseFields(
+  definition: EntityDefinition
+): string {
+  return [
+    "entity.getId()",
+    ...definition.fields.map(
+      (field) =>
+        `entity.get${capitalize(field.name)}()`
+    )
+  ].join(",\n            ");
 }
 
 export function createServiceTemplate(
@@ -27,15 +40,8 @@ export function createServiceTemplate(
   validateEntityDefinition(definition);
 
   const name = definition.name;
-
   const setters = createFieldSetters(definition);
-
-  const responseFields = [
-    "entity.getId()",
-    ...definition.fields.map((field) => {
-      return `entity.get${capitalize(field.name)}()`;
-    })
-  ].join(",\n            ");
+  const responseFields = createResponseFields(definition);
 
   return `package ${packageName}.service;
 
@@ -76,19 +82,11 @@ ${setters}
     }
 
     public ${name}Response findById(Long id) {
-        ${name} entity = repository.findById(id)
-                .orElseThrow(() ->
-                    new NoSuchElementException("${name} not found: " + id)
-                );
-
-        return toResponse(entity);
+        return toResponse(findEntityById(id));
     }
 
     public ${name}Response update(Long id, ${name}Request request) {
-        ${name} entity = repository.findById(id)
-                .orElseThrow(() ->
-                    new NoSuchElementException("${name} not found: " + id)
-                );
+        ${name} entity = findEntityById(id);
 
 ${setters}
 
@@ -98,12 +96,14 @@ ${setters}
     }
 
     public void delete(Long id) {
-        ${name} entity = repository.findById(id)
+        repository.delete(findEntityById(id));
+    }
+
+    private ${name} findEntityById(Long id) {
+        return repository.findById(id)
                 .orElseThrow(() ->
                     new NoSuchElementException("${name} not found: " + id)
                 );
-
-        repository.delete(entity);
     }
 
     private ${name}Response toResponse(${name} entity) {
