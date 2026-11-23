@@ -1,10 +1,3 @@
-import {
-  mkdir,
-  writeFile
-} from "node:fs/promises";
-
-import path from "node:path";
-
 import type {
   EntityDefinition
 } from "../../types/entity-definition.js";
@@ -14,6 +7,11 @@ import type {
 } from "../../types/spring-project.js";
 
 import {
+  javaFilePath,
+  writeJavaFile
+} from "../shared/java-files.js";
+
+import {
   createRepositoryTemplate
 } from "./repository-template.js";
 
@@ -21,13 +19,9 @@ export async function generateRepository(
   project: SpringProject,
   definition: EntityDefinition
 ): Promise<string> {
-  const repositoryDirectory = path.join(
+  const filePath = javaFilePath(
     project.sourcePath,
-    "repository"
-  );
-
-  const filePath = path.join(
-    repositoryDirectory,
+    "repository",
     `${definition.name}Repository.java`
   );
 
@@ -36,14 +30,5 @@ export async function generateRepository(
     project.packageName
   );
 
-  await mkdir(repositoryDirectory, {
-    recursive: true
-  });
-
-  await writeFile(filePath, content, {
-    encoding: "utf-8",
-    flag: "wx"
-  });
-
-  return filePath;
+  return writeJavaFile(filePath, content);
 }

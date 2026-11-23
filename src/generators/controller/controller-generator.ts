@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import type {
   EntityDefinition
 } from "../../types/entity-definition.js";
@@ -10,6 +7,11 @@ import type {
 } from "../../types/spring-project.js";
 
 import {
+  javaFilePath,
+  writeJavaFile
+} from "../shared/java-files.js";
+
+import {
   createControllerTemplate
 } from "./controller-template.js";
 
@@ -17,29 +19,16 @@ export async function generateController(
   project: SpringProject,
   definition: EntityDefinition
 ): Promise<string> {
+  const filePath = javaFilePath(
+    project.sourcePath,
+    "controller",
+    `${definition.name}Controller.java`
+  );
+
   const content = createControllerTemplate(
     definition,
     project.packageName
   );
 
-  const controllerDirectory = path.join(
-    project.sourcePath,
-    "controller"
-  );
-
-  await mkdir(controllerDirectory, {
-    recursive: true
-  });
-
-  const filePath = path.join(
-    controllerDirectory,
-    `${definition.name}Controller.java`
-  );
-
-  await writeFile(filePath, content, {
-    encoding: "utf8",
-    flag: "wx"
-  });
-
-  return filePath;
+  return writeJavaFile(filePath, content);
 }
