@@ -1,6 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import type {
   EntityDefinition
 } from "../../types/entity-definition.js";
@@ -10,6 +7,11 @@ import type {
 } from "../../types/spring-project.js";
 
 import {
+  javaFilePath,
+  writeJavaFile
+} from "../shared/java-files.js";
+
+import {
   createEntityTemplate
 } from "./entity-template.js";
 
@@ -17,13 +19,9 @@ export async function generateEntity(
   project: SpringProject,
   definition: EntityDefinition
 ): Promise<string> {
-  const entityDirectory = path.join(
+  const filePath = javaFilePath(
     project.sourcePath,
-    "entity"
-  );
-
-  const filePath = path.join(
-    entityDirectory,
+    "entity",
     `${definition.name}.java`
   );
 
@@ -32,14 +30,5 @@ export async function generateEntity(
     project.packageName
   );
 
-  await mkdir(entityDirectory, {
-    recursive: true
-  });
-
-  await writeFile(filePath, content, {
-    encoding: "utf-8",
-    flag: "wx"
-  });
-
-  return filePath;
+  return writeJavaFile(filePath, content);
 }

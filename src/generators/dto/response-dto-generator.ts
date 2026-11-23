@@ -1,22 +1,27 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
+import type {
+  EntityDefinition
+} from "../../types/entity-definition.js";
 
-import type { EntityDefinition } from "../../types/entity-definition.js";
-import type { SpringProject } from "../../types/spring-project.js";
+import type {
+  SpringProject
+} from "../../types/spring-project.js";
 
-import { createResponseDtoTemplate } from "./response-dto-template.js";
+import {
+  javaFilePath,
+  writeJavaFile
+} from "../shared/java-files.js";
+
+import {
+  createResponseDtoTemplate
+} from "./response-dto-template.js";
 
 export async function generateResponseDto(
   project: SpringProject,
   definition: EntityDefinition
 ): Promise<string> {
-  const dtoDirectory = path.join(
+  const filePath = javaFilePath(
     project.sourcePath,
-    "dto"
-  );
-
-  const filePath = path.join(
-    dtoDirectory,
+    "dto",
     `${definition.name}Response.java`
   );
 
@@ -25,14 +30,5 @@ export async function generateResponseDto(
     project.packageName
   );
 
-  await mkdir(dtoDirectory, {
-    recursive: true
-  });
-
-  await writeFile(filePath, content, {
-    encoding: "utf-8",
-    flag: "wx"
-  });
-
-  return filePath;
+  return writeJavaFile(filePath, content);
 }

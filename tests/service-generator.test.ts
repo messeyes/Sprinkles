@@ -113,7 +113,9 @@ describe("generateService", () => {
 
       await expect(
         generateService(project, definition)
-      ).rejects.toThrow();
+      ).rejects.toMatchObject({
+        code: "EEXIST"
+      });
 
     } finally {
       await rm(rootPath, {

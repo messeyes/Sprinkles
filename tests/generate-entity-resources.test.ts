@@ -39,6 +39,18 @@ import {
   generateController
 } from "../src/generators/controller/controller-generator.js";
 
+import {
+  generateEntity
+} from "../src/generators/entity/entity-generator.js";
+
+import {
+  generateRepository
+} from "../src/generators/repository/repository-generator.js";
+
+import {
+  generateResponseDto
+} from "../src/generators/dto/response-dto-generator.js";
+
 vi.mock(
   "../src/generators/dto/dto-generator.js",
   async (importOriginal) => {
@@ -81,6 +93,48 @@ vi.mock(
   }
 );
 
+vi.mock(
+  "../src/generators/entity/entity-generator.js",
+  async (importOriginal) => {
+    const original = await importOriginal<
+      typeof import("../src/generators/entity/entity-generator.js")
+    >();
+
+    return {
+      ...original,
+      generateEntity: vi.fn(original.generateEntity)
+    };
+  }
+);
+
+vi.mock(
+  "../src/generators/repository/repository-generator.js",
+  async (importOriginal) => {
+    const original = await importOriginal<
+      typeof import("../src/generators/repository/repository-generator.js")
+    >();
+
+    return {
+      ...original,
+      generateRepository: vi.fn(original.generateRepository)
+    };
+  }
+);
+
+vi.mock(
+  "../src/generators/dto/response-dto-generator.js",
+  async (importOriginal) => {
+    const original = await importOriginal<
+      typeof import("../src/generators/dto/response-dto-generator.js")
+    >();
+
+    return {
+      ...original,
+      generateResponseDto: vi.fn(original.generateResponseDto)
+    };
+  }
+);
+
 describe("generateEntityResources", () => {
   let temporaryDirectory: string;
   let project: SpringProject;
@@ -98,6 +152,36 @@ describe("generateEntityResources", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+
+    vi.mocked(generateEntity).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/entity/entity-generator.js")
+        >("../src/generators/entity/entity-generator.js");
+
+        return original.generateEntity(...args);
+      }
+    );
+
+    vi.mocked(generateRepository).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/repository/repository-generator.js")
+        >("../src/generators/repository/repository-generator.js");
+
+        return original.generateRepository(...args);
+      }
+    );
+
+    vi.mocked(generateResponseDto).mockImplementation(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/dto/response-dto-generator.js")
+        >("../src/generators/dto/response-dto-generator.js");
+
+        return original.generateResponseDto(...args);
+      }
+    );
 
     vi.mocked(generateDto).mockImplementation(
       async (...args) => {
@@ -551,5 +635,148 @@ describe("generateEntityResources", () => {
         code: "ENOENT"
       });
     }
+  });
+
+  it("generates resources in the defined order", async () => {
+    await generateEntityResources(project, definition);
+
+    const orders = [
+      vi.mocked(generateEntity).mock.invocationCallOrder[0]!,
+      vi.mocked(generateRepository).mock.invocationCallOrder[0]!,
+      vi.mocked(generateDto).mock.invocationCallOrder[0]!,
+      vi.mocked(generateResponseDto).mock.invocationCallOrder[0]!,
+      vi.mocked(generateService).mock.invocationCallOrder[0]!,
+      vi.mocked(generateController).mock.invocationCallOrder[0]!
+    ];
+
+    expect(orders).toEqual([...orders].sort((a, b) => a - b));
+    expect(new Set(orders).size).toBe(6);
+    expect(vi.mocked(generateEntity).mock.calls[0]).toEqual([
+      project,
+      definition
+    ]);
+  });
+
+  it("does not generate resources if the entity already exists", async () => {
+    const entityDirectory = path.join(
+      project.sourcePath,
+      "entity"
+    );
+
+    await mkdir(entityDirectory, {
+      recursive: true
+    });
+
+    const entityPath = path.join(
+      entityDirectory,
+      "Book.java"
+    );
+
+    await writeFile(entityPath, "// Existing entity");
+
+    await expect(
+      generateEntityResources(project, definition)
+    ).rejects.toThrow("Entity already exists");
+
+    expect(
+      await readFile(entityPath, "utf8")
+    ).toBe("// Existing entity");
+
+    for (const filePath of [
+      path.join(
+        project.sourcePath,
+        "repository",
+        "BookRepository.java"
+      ),
+      path.join(project.sourcePath, "dto", "BookRequest.java"),
+      path.join(project.sourcePath, "dto", "BookResponse.java"),
+      path.join(project.sourcePath, "service", "BookService.java"),
+      path.join(
+        project.sourcePath,
+        "controller",
+        "BookController.java"
+      )
+    ]) {
+      await expect(
+        access(filePath)
+      ).rejects.toMatchObject({
+        code: "ENOENT"
+      });
+    }
+  });
+
+  it("keeps a partially written file when a generator writes and then fails", async () => {
+    vi.mocked(generateDto).mockImplementationOnce(
+      async (...args) => {
+        const original = await vi.importActual<
+          typeof import("../src/generators/dto/dto-generator.js")
+        >("../src/generators/dto/dto-generator.js");
+
+        await original.generateDto(...args);
+
+        throw new Error("Failed after writing DTO");
+      }
+    );
+
+    await expect(
+      generateEntityResources(project, definition)
+    ).rejects.toThrow("Failed after writing DTO");
+
+    for (const filePath of [
+      path.join(project.sourcePath, "entity", "Book.java"),
+      path.join(
+        project.sourcePath,
+        "repository",
+        "BookRepository.java"
+      )
+    ]) {
+      await expect(
+        access(filePath)
+      ).rejects.toMatchObject({
+        code: "ENOENT"
+      });
+    }
+
+    expect(
+      await readFile(
+        path.join(project.sourcePath, "dto", "BookRequest.java"),
+        "utf8"
+      )
+    ).toContain("public record BookRequest(");
+  });
+
+  it("throws AggregateError when cleanup cannot remove a file", async () => {
+    const directoryPath = path.join(
+      temporaryDirectory,
+      "cleanup-target"
+    );
+
+    await mkdir(directoryPath);
+
+    vi.mocked(generateDto).mockImplementationOnce(
+      async () => directoryPath
+    );
+
+    vi.mocked(generateService).mockRejectedValueOnce(
+      new Error("Service generation failed")
+    );
+
+    const error = await generateEntityResources(
+      project,
+      definition
+    ).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(AggregateError);
+    expect(error).toMatchObject({
+      message:
+        "Resource generation failed and cleanup was incomplete."
+    });
+
+    const aggregate = error as AggregateError;
+
+    expect(aggregate.errors).toHaveLength(2);
+    expect(aggregate.errors[0]).toMatchObject({
+      message: "Service generation failed"
+    });
   });
 });
