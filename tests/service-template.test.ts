@@ -70,27 +70,19 @@ describe("createServiceTemplate", () => {
   });
 
   it("saves the entity and returns a response DTO", () => {
-    const result = createServiceTemplate(
-      definition,
-      "com.example.demo"
-    );
+  const result = createServiceTemplate(
+    definition,
+    "com.example.demo"
+  );
 
-    expect(result).toContain(
-      "repository.save(entity)"
-    );
+  expect(result).toContain(
+    "repository.save(entity)"
+  );
 
-    expect(result).toContain(
-      "savedEntity.getId()"
-    );
-
-    expect(result).toContain(
-      "savedEntity.getTitle()"
-    );
-
-    expect(result).toContain(
-      "savedEntity.getAuthor()"
-    );
-  });
+  expect(result).toContain(
+    "return toResponse(savedEntity);"
+  );
+});
 
   it("rejects invalid entity definitions", () => {
     expect(() =>
@@ -103,4 +95,65 @@ describe("createServiceTemplate", () => {
       )
     ).toThrow();
   });
+
+    it("generates a findAll method", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        "public List<BookResponse> findAll()"
+    );
+
+    expect(result).toContain(
+        "repository.findAll()"
+    );
+
+    expect(result).toContain(
+        ".map(this::toResponse)"
+    );
+    });
+
+    it("generates a findById method", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        "public BookResponse findById(Long id)"
+    );
+
+    expect(result).toContain(
+        "repository.findById(id)"
+    );
+
+    expect(result).toContain(
+        'new NoSuchElementException("Book not found: " + id)'
+    );
+    });
+
+    it("generates a reusable response mapper", () => {
+    const result = createServiceTemplate(
+        definition,
+        "com.example.demo"
+    );
+
+    expect(result).toContain(
+        "private BookResponse toResponse(Book entity)"
+    );
+
+    expect(result).toContain(
+        "entity.getId()"
+    );
+
+    expect(result).toContain(
+        "entity.getTitle()"
+    );
+
+    expect(result).toContain(
+        "entity.getAuthor()"
+    );
+    });
 });
