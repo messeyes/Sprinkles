@@ -7,10 +7,12 @@ import type { SpringProject } from "../types/spring-project.js";
 import { validateEntityDefinition } from "../utils/validate-entity-definition.js";
 import { generateEntity } from "./entity/entity-generator.js";
 import { generateRepository } from "./repository/repository-generator.js";
+import { generateDto } from "./dto/dto-generator.js";
 
 interface GeneratedResources {
   entityPath: string;
   repositoryPath: string;
+  dtoPath: string;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -48,36 +50,61 @@ export async function generateEntityResources(
     `${definition.name}Repository.java`
   );
 
-  if (await fileExists(entityPath)) {
-    throw new Error(`Entity already exists: ${entityPath}`);
-  }
-
-  if (await fileExists(repositoryPath)) {
-    throw new Error(`Repository already exists: ${repositoryPath}`);
-  }
-
-  const createdEntityPath = await generateEntity(
-    project,
-    definition
+  const dtoPath = path.join(
+    project.sourcePath,
+    "dto",
+    `${definition.name}Request.java`
   );
 
+  const resources = [
+    { name: "Entity", filePath: entityPath },
+    { name: "Repository", filePath: repositoryPath },
+    { name: "DTO", filePath: dtoPath }
+  ];
+
+  for (const resource of resources) {
+    if (await fileExists(resource.filePath)) {
+      throw new Error(
+        `${resource.name} already exists: ${resource.filePath}`
+      );
+    }
+  }
+
+  const createdFiles: string[] = [];
+
   try {
-    const createdRepositoryPath = await generateRepository(
-      project,
-      definition
+    createdFiles.push(
+      await generateEntity(project, definition)
+    );
+
+    createdFiles.push(
+      await generateRepository(project, definition)
+    );
+
+    createdFiles.push(
+      await generateDto(project, definition)
     );
 
     return {
-      entityPath: createdEntityPath,
-      repositoryPath: createdRepositoryPath
+      entityPath,
+      repositoryPath,
+      dtoPath
     };
   } catch (error) {
-    try {
-      await unlink(createdEntityPath);
-    } catch (cleanupError) {
+    const cleanupErrors: unknown[] = [];
+
+    for (const filePath of createdFiles.reverse()) {
+      try {
+        await unlink(filePath);
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
+    }
+
+    if (cleanupErrors.length > 0) {
       throw new AggregateError(
-        [error, cleanupError],
-        "Repository generation failed and entity cleanup also failed."
+        [error, ...cleanupErrors],
+        "Resource generation failed and cleanup was incomplete."
       );
     }
 

@@ -150,12 +150,13 @@ generateCommand
 
       const definition = await askEntityFields(name);
 
-      const { entityPath, repositoryPath } =
+      const { entityPath, repositoryPath, dtoPath } =
         await generateEntityResources(project, definition);
 
       console.log("\nResources generated successfully!");
       console.log(`Entity: ${entityPath}`);
       console.log(`Repository: ${repositoryPath}`);
+      console.log(`DTO: ${dtoPath}`);
     });
   });
 
