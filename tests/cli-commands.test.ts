@@ -28,6 +28,22 @@ import {
   askProjectOptions
 } from "../src/cli/prompts/project-prompts.js";
 
+import {
+  detectSpringProject
+} from "../src/core/project/detect-spring-project.js";
+
+import {
+  generateEntityResources
+} from "../src/generators/generate-entity-resources.js";
+
+import {
+  askEntityFields
+} from "../src/cli/prompts/entity-prompts.js";
+
+import {
+  generateEntityCommand
+} from "../src/cli/commands/generate-entity.js";
+
 vi.mock("../src/cli/prompts/project-prompts.js", () => ({
   askProjectOptions: vi.fn()
 }));
@@ -43,6 +59,24 @@ vi.mock(
     generateSpringProject: vi.fn()
   })
 );
+
+vi.mock(
+  "../src/core/project/detect-spring-project.js",
+  () => ({
+    detectSpringProject: vi.fn()
+  })
+);
+
+vi.mock(
+  "../src/generators/generate-entity-resources.js",
+  () => ({
+    generateEntityResources: vi.fn()
+  })
+);
+
+vi.mock("../src/cli/prompts/entity-prompts.js", () => ({
+  askEntityFields: vi.fn()
+}));
 
 describe("runCommand", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;
@@ -184,5 +218,81 @@ describe("createProject", () => {
     ).rejects.toThrow(
       "Use --config or --save-config, not both."
     );
+  });
+});
+
+describe("generateEntityCommand", () => {
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
+  const project = {
+    rootPath: "/tmp/demo",
+    sourcePath: "/tmp/demo/src/main/java/com/example/demo",
+    packageName: "com.example.demo",
+    buildTool: "maven" as const
+  };
+
+  const definition = {
+    name: "Book",
+    fields: [
+      {
+        name: "title",
+        type: "String" as const,
+        required: true
+      }
+    ]
+  };
+
+  const paths = {
+    entityPath: "entity/Book.java",
+    repositoryPath: "repository/BookRepository.java",
+    dtoPath: "dto/BookRequest.java",
+    responseDtoPath: "dto/BookResponse.java",
+    servicePath: "service/BookService.java",
+    controllerPath: "controller/BookController.java"
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    logSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => {});
+
+    vi.mocked(detectSpringProject).mockResolvedValue(
+      project
+    );
+
+    vi.mocked(askEntityFields).mockResolvedValue(
+      definition
+    );
+
+    vi.mocked(generateEntityResources).mockResolvedValue(
+      paths
+    );
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  it("detects the project, asks fields and logs all resources", async () => {
+    await generateEntityCommand("Book");
+
+    expect(detectSpringProject).toHaveBeenCalledWith();
+    expect(askEntityFields).toHaveBeenCalledWith("Book");
+    expect(generateEntityResources).toHaveBeenCalledWith(
+      project,
+      definition
+    );
+
+    expect(logSpy.mock.calls).toEqual([
+      ["\nProject package: com.example.demo"],
+      ["\nResources generated successfully!"],
+      ["Entity: entity/Book.java"],
+      ["Repository: repository/BookRepository.java"],
+      ["Request DTO: dto/BookRequest.java"],
+      ["Response DTO: dto/BookResponse.java"],
+      ["Service: service/BookService.java"],
+      ["Controller: controller/BookController.java"]
+    ]);
   });
 });
